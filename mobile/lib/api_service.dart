@@ -1,15 +1,17 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import 'models/models.dart';
 
 /// 10.0.2.2 is how the Android emulator reaches the host machine's localhost.
-/// On a physical device, iOS simulator, or web build, point this at your
-/// machine's LAN IP or the deployed API URL instead.
-String get _baseUrl => Platform.isAndroid ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000';
+/// On web, a physical device, or an iOS simulator, point this at your
+/// machine's LAN IP or the deployed API URL instead. Uses defaultTargetPlatform
+/// (not dart:io Platform, which throws UnsupportedError on web builds).
+String get _baseUrl =>
+    (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ? 'http://10.0.2.2:8000' : 'http://127.0.0.1:8000';
 
 class ApiException implements Exception {
   final String message;

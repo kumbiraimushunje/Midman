@@ -94,7 +94,13 @@ class ServiceRequest {
         category: json['category'],
         title: json['title'],
         description: json['description'],
-        amount: json['amount'],
+        // The backend serializes Decimal as a JSON string (e.g. "450.00") to preserve precision.
+        amount: switch (json['amount']) {
+          null => null,
+          num n => n,
+          String s => num.tryParse(s),
+          _ => null,
+        },
         currency: json['currency'],
         status: json['status'],
         fraudRiskLevel: json['fraud_risk_level'],
