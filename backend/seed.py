@@ -2,17 +2,15 @@
   customer@midman.app   / password123   (role=customer)
   staff@midman.app      / password123   (role=staff, can approve + update status)
 
-Run once: python seed.py
+Run `alembic upgrade head` first to create the schema, then: python seed.py
 """
 
 from datetime import date
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.id_generator import generate_member_id
 from app.models import User, UserRole
 from app.security import hash_password
-
-Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 try:

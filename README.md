@@ -15,8 +15,9 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env
 # edit .env with your Neon DATABASE_URL and a JWT_SECRET
+alembic upgrade head   # creates the schema
+python seed.py         # first run only, creates demo accounts
 uvicorn app.main:app --reload
-python seed.py   # first run only, creates demo accounts
 ```
 
 Mobile:

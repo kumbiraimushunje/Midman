@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from . import schemas
-from .database import Base, engine, get_db
+from .database import get_db
 from .fraud_check import run_fraud_check
 from .id_generator import generate_member_id, generate_request_number
 from .models import (
@@ -23,8 +23,6 @@ from .models import (
 from .notifications import notify_decision, notify_status_change
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .uploads import UPLOAD_DIR, save_upload
-
-Base.metadata.create_all(bind=engine)  # dev convenience; swap for Alembic migrations before production
 
 app = FastAPI(title="MidMan API")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")

@@ -88,7 +88,10 @@ and seeded with demo accounts.
       the customer app - full request queue, one-tap approve/reject, status
       lifecycle dropdown, evidence attachment
 - [ ] Real SMTP provider connected
-- [ ] Alembic migrations (currently using `create_all` for dev speed)
+- [x] Alembic migrations: initial schema migration generated and verified
+      against a clean database (full smoke test passing), Neon stamped as
+      up to date with zero drift (`alembic check`); `app/models.py` is now
+      the source of truth for schema changes, not `create_all`
 - [ ] Swap local-disk evidence storage for S3 (or equivalent) before production
 
 ### Phase 2 — Admin / staff tooling
@@ -128,6 +131,10 @@ midman/
 │   ├── requirements.txt
 │   ├── .env.example
 │   ├── seed.py
+│   ├── alembic.ini
+│   ├── alembic/
+│   │   ├── env.py
+│   │   └── versions/        <- one file per schema migration, committed
 │   └── app/
 │       ├── main.py
 │       ├── config.py
@@ -137,6 +144,7 @@ midman/
 │       ├── security.py
 │       ├── id_generator.py
 │       ├── fraud_check.py
+│       ├── uploads.py
 │       └── notifications.py
 └── mobile/                  <- Flutter app (midman_app)
     └── lib/
