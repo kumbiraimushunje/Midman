@@ -63,7 +63,8 @@ Received → Arranging → In Progress → Completed
 
 ### Phase 0 — Environment (done)
 Flutter, Python, PostgreSQL client libs, VS Code extensions, project
-scaffold, Git.
+scaffold, Git, Neon (cloud Postgres, used for both dev and prod) connected
+and seeded with demo accounts.
 
 ### Phase 1 — MVP core (in progress, scaffolded this session)
 - [x] Data model: User, Beneficiary, ServiceRequest, RequestEvent, Evidence
