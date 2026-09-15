@@ -105,6 +105,8 @@ class ServiceRequestOut(BaseModel):
     fraud_risk_score: Optional[int] = None
     fraud_reasoning: Optional[str] = None
     created_at: datetime
+    requester: UserOut
+    beneficiary: Optional[BeneficiaryOut] = None
     events: list[RequestEventOut] = []
     evidence: list[EvidenceOut] = []
 

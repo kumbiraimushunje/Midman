@@ -89,7 +89,11 @@ class ServiceRequest {
   final String currency;
   final String status;
   final String? fraudRiskLevel;
+  final int? fraudRiskScore;
+  final String? fraudReasoning;
   final DateTime createdAt;
+  final MidManUser requester;
+  final Beneficiary? beneficiary;
   final List<RequestEvent> events;
   final List<EvidenceOut> evidence;
 
@@ -103,7 +107,11 @@ class ServiceRequest {
     required this.currency,
     required this.status,
     this.fraudRiskLevel,
+    this.fraudRiskScore,
+    this.fraudReasoning,
     required this.createdAt,
+    required this.requester,
+    this.beneficiary,
     required this.events,
     required this.evidence,
   });
@@ -124,7 +132,13 @@ class ServiceRequest {
         currency: json['currency'],
         status: json['status'],
         fraudRiskLevel: json['fraud_risk_level'],
+        fraudRiskScore: json['fraud_risk_score'],
+        fraudReasoning: json['fraud_reasoning'],
         createdAt: DateTime.parse(json['created_at']),
+        requester: MidManUser.fromJson(json['requester'] as Map<String, dynamic>),
+        beneficiary: json['beneficiary'] == null
+            ? null
+            : Beneficiary.fromJson(json['beneficiary'] as Map<String, dynamic>),
         events: (json['events'] as List? ?? [])
             .map((e) => RequestEvent.fromJson(e as Map<String, dynamic>))
             .toList(),

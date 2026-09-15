@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -142,6 +142,21 @@ def create_service_request(
         notify_status_change, current_user, req, CUSTOMER_STAGE_MAP[RequestStatus.requested]
     )
     return req
+
+
+@app.get("/service-requests", response_model=list[schemas.ServiceRequestOut])
+def list_all_requests(
+    status_filter: RequestStatus | None = Query(None, alias="status"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The staff/admin work queue - every request, optionally filtered by status."""
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    query = db.query(ServiceRequest)
+    if status_filter is not None:
+        query = query.filter(ServiceRequest.status == status_filter)
+    return query.order_by(ServiceRequest.created_at.desc()).all()
 
 
 @app.get("/service-requests/mine", response_model=list[schemas.ServiceRequestOut])

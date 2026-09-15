@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_service.dart';
-import 'screens/home_shell.dart';
+import 'screens/role_home_shell.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
 
@@ -36,7 +36,7 @@ class _StartupGate extends StatelessWidget {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return (snapshot.data ?? false) ? const HomeShell() : const SplashScreen();
+        return (snapshot.data ?? false) ? const RoleHomeShell() : const SplashScreen();
       },
     );
   }

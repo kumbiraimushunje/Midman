@@ -117,6 +117,43 @@ class ApiService {
     return data.map((e) => ServiceRequest.fromJson(e)).toList();
   }
 
+  /// Staff/admin/approver only - the full work queue, optionally filtered by status
+  /// (a RequestStatus value like 'approval_required', 'in_progress', ...).
+  static Future<List<ServiceRequest>> allRequests({String? status}) async {
+    final uri = Uri.parse('$_baseUrl/service-requests').replace(
+      queryParameters: status != null ? {'status': status} : null,
+    );
+    final res = await http.get(uri, headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => ServiceRequest.fromJson(e)).toList();
+  }
+
+  static Future<ServiceRequest> decideRequest({
+    required String requestId,
+    required bool approve,
+    String? comment,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/service-requests/$requestId/${approve ? 'approve' : 'reject'}'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'comment': comment}),
+    );
+    return ServiceRequest.fromJson(_decode(res));
+  }
+
+  static Future<ServiceRequest> updateRequestStatus({
+    required String requestId,
+    required String status,
+    String? note,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/service-requests/$requestId/status'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'status': status, 'note': note}),
+    );
+    return ServiceRequest.fromJson(_decode(res));
+  }
+
   static Future<ServiceRequest> createServiceRequest({
     required String category,
     required String title,
