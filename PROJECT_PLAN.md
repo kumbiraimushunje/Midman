@@ -82,7 +82,10 @@ scaffold, Git.
       creating a request, staff attach completion proof; local-disk storage
       behind `/service-requests/{id}/evidence`, shown in the app as photo
       thumbnails / tappable document rows
-- [ ] Staff/admin screens (currently API-only, tested via curl)
+- [x] Staff/admin screens: role-based routing sends staff/admin/approver
+      accounts to a separate shell (Queue / Approvals / Account) instead of
+      the customer app - full request queue, one-tap approve/reject, status
+      lifecycle dropdown, evidence attachment
 - [ ] Real SMTP provider connected
 - [ ] Alembic migrations (currently using `create_all` for dev speed)
 - [ ] Swap local-disk evidence storage for S3 (or equivalent) before production
