@@ -105,15 +105,26 @@ and seeded with demo accounts.
       it lands in S3, fetched it back through a presigned URL (HTTP 200,
       correct content), and confirmed the app's evidence tile opens it.
 
-### Phase 2 — Admin / staff tooling
-Web or app-based queue for staff to pick up requests, update status, attach
-evidence, and see fraud-risk flags before approving.
+### Phase 2 — Admin / staff tooling (done, folded into Phase 1)
+Delivered as the "Staff/admin screens" item above: role-based queue, status
+updates, evidence, and fraud-risk flags visible before approving.
 
-### Phase 3 — Subscriptions
-Free 1-month trial → PAYG / Standard / Pro. PAYG: no beneficiaries list,
-higher per-service pricing. Standard: recurring payments, faster processing.
-Pro: priority queue, free document assistance. Gate features by
-`User.account_type` server-side.
+### Phase 3 — Subscriptions (tier logic done, pricing still deferred)
+- [x] 30-day free trial on every new account (`trial_ends_at`), trial = PAYG
+      features until a paid tier is chosen (no billing exists yet)
+- [x] PAYG: blocked from saving beneficiaries (403 + in-app upgrade prompt),
+      request history hides completed/closed/rejected/cancelled requests
+- [x] Standard/Pro: full beneficiaries + full history
+- [x] Pro: requests surface first in the staff queue ("prioritised first")
+- [x] Self-service tier switch (`POST /me/subscription`) and an in-app
+      Membership screen listing each tier's features
+- [ ] Actual pricing per tier ("Subscriptions fees right amounts will be
+      added later") and a real payment/billing flow to charge for them
+- [ ] Standard's "recurring payments" as an actual automated feature (right
+      now Standard+ just isn't blocked from anything - there's no recurring
+      request scheduler yet)
+- [ ] Pro's "free digital assistance" as an actual price waiver (depends on
+      pricing existing first)
 
 ### Phase 4 — AI concierge
 Natural-language request creation ("Pay my daughter's school fees"), invoice
