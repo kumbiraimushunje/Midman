@@ -87,7 +87,11 @@ and seeded with demo accounts.
       accounts to a separate shell (Queue / Approvals / Account) instead of
       the customer app - full request queue, one-tap approve/reject, status
       lifecycle dropdown, evidence attachment
-- [ ] Real SMTP provider connected
+- [x] Real SMTP connected (Gmail + App Password for now - swap for
+      SendGrid/Resend/SES before real send volume, Gmail rate-limits and
+      flags automated senders); verified with a real delivered test email
+      and, separately, real app-triggered "received" and "approved" emails
+      through the actual background-task code path
 - [x] Alembic migrations: initial schema migration generated and verified
       against a clean database (full smoke test passing), Neon stamped as
       up to date with zero drift (`alembic check`); `app/models.py` is now
