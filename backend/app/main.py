@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from . import schemas
@@ -11,6 +12,7 @@ from .fraud_check import run_fraud_check
 from .id_generator import generate_member_id, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
+    AccountType,
     Beneficiary,
     Evidence,
     EvidenceType,
@@ -22,6 +24,7 @@ from .models import (
 )
 from .notifications import notify_decision, notify_status_change
 from .security import create_access_token, get_current_user, hash_password, verify_password
+from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
 from .uploads import UPLOAD_DIR, save_upload
 
 app = FastAPI(title="MidMan API")
@@ -55,6 +58,7 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
         physical_address=payload.physical_address,
         country_of_residence=payload.country_of_residence,
         primary_purpose=payload.primary_purpose,
+        trial_ends_at=trial_ends_at_for_new_user(),
     )
     db.add(user)
     db.commit()
@@ -81,6 +85,20 @@ def delete_me(current_user: User = Depends(get_current_user), db: Session = Depe
     db.commit()
 
 
+@app.post("/me/subscription", response_model=schemas.UserOut)
+def change_subscription(
+    payload: schemas.SubscriptionChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Self-service tier switch. No payment gateway wired up yet - pricing
+    for each tier hasn't been set, so this just records the choice."""
+    current_user.account_type = payload.account_type
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
 # ---------- Beneficiaries ----------
 
 @app.post("/beneficiaries", response_model=schemas.BeneficiaryOut, status_code=201)
@@ -89,6 +107,12 @@ def create_beneficiary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not can_manage_beneficiaries(current_user):
+        raise HTTPException(
+            403,
+            "PAYG doesn't support saved beneficiaries - upgrade to Standard or Pro "
+            "to save the people you look after instead of re-entering details each time.",
+        )
     beneficiary = Beneficiary(owner_id=current_user.id, **payload.model_dump())
     db.add(beneficiary)
     db.commit()
@@ -148,23 +172,25 @@ def list_all_requests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """The staff/admin work queue - every request, optionally filtered by status."""
+    """The staff/admin work queue - every request, optionally filtered by
+    status. Pro customers' requests surface first ("prioritised first")."""
     if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
         raise HTTPException(403, "Staff only")
-    query = db.query(ServiceRequest)
+    query = db.query(ServiceRequest).join(User, ServiceRequest.requester_id == User.id)
     if status_filter is not None:
         query = query.filter(ServiceRequest.status == status_filter)
-    return query.order_by(ServiceRequest.created_at.desc()).all()
+    priority = case((User.account_type == AccountType.pro, 0), else_=1)
+    return query.order_by(priority, ServiceRequest.created_at.desc()).all()
 
 
 @app.get("/service-requests/mine", response_model=list[schemas.ServiceRequestOut])
 def my_requests(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return (
-        db.query(ServiceRequest)
-        .filter(ServiceRequest.requester_id == current_user.id)
-        .order_by(ServiceRequest.created_at.desc())
-        .all()
-    )
+    """PAYG only sees requests still in flight ("no list of previous transactions")."""
+    query = db.query(ServiceRequest).filter(ServiceRequest.requester_id == current_user.id)
+    allowed_statuses = visible_statuses_for(current_user)
+    if allowed_statuses is not None:
+        query = query.filter(ServiceRequest.status.in_(allowed_statuses))
+    return query.order_by(ServiceRequest.created_at.desc()).all()
 
 
 @app.get("/service-requests/pending", response_model=list[schemas.ServiceRequestOut])

@@ -40,9 +40,14 @@ class UserOut(BaseModel):
     phone: str
     role: UserRole
     account_type: AccountType
+    trial_ends_at: Optional[datetime] = None
     kyc_status: KYCStatus
     country_of_residence: str
     created_at: datetime
+
+
+class SubscriptionChangeRequest(BaseModel):
+    account_type: AccountType
 
 
 class BeneficiaryCreate(BaseModel):

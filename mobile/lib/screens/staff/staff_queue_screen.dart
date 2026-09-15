@@ -21,7 +21,9 @@ class _StaffQueueScreenState extends State<StaffQueueScreen> {
     _future = ApiService.allRequests();
   }
 
-  void _reload() => setState(() => _future = ApiService.allRequests());
+  void _reload() => setState(() {
+        _future = ApiService.allRequests();
+      });
 
   @override
   Widget build(BuildContext context) {

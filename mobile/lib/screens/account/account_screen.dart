@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
 import '../login_screen.dart';
+import 'subscription_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -26,6 +28,19 @@ class _AccountScreenState extends State<AccountScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
   }
+
+  Future<void> _manageMembership(MidManUser user) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType)),
+    );
+    if (changed == true) {
+      setState(() {
+        _future = ApiService.me();
+      });
+    }
+  }
+
+  String _formatDate(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
 
   @override
   Widget build(BuildContext context) {
@@ -58,26 +73,36 @@ class _AccountScreenState extends State<AccountScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: MidManColors.ink,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.workspace_premium, color: MidManColors.gold),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${user.accountType.toUpperCase()} Plan', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                          const Text('Manage your membership', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                        ],
+              InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _manageMembership(user),
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: MidManColors.ink,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.workspace_premium, color: MidManColors.gold),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${user.accountType.toUpperCase()} Plan', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                            Text(
+                              user.isOnTrial
+                                  ? 'Free trial ends ${_formatDate(user.trialEndsAt!)} - tap to choose a plan'
+                                  : 'Manage your membership',
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      const Icon(Icons.chevron_right, color: Colors.white54),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

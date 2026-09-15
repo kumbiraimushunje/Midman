@@ -22,7 +22,9 @@ class _RequestsScreenState extends State<RequestsScreen> {
     _future = ApiService.myRequests();
   }
 
-  void _reload() => setState(() => _future = ApiService.myRequests());
+  void _reload() => setState(() {
+        _future = ApiService.myRequests();
+      });
 
   @override
   Widget build(BuildContext context) {

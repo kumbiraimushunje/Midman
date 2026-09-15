@@ -6,6 +6,7 @@ class MidManUser {
   final String phone;
   final String role;
   final String accountType;
+  final DateTime? trialEndsAt;
   final String kycStatus;
 
   MidManUser({
@@ -16,8 +17,11 @@ class MidManUser {
     required this.phone,
     required this.role,
     required this.accountType,
+    this.trialEndsAt,
     required this.kycStatus,
   });
+
+  bool get isOnTrial => trialEndsAt != null && DateTime.now().isBefore(trialEndsAt!);
 
   factory MidManUser.fromJson(Map<String, dynamic> json) => MidManUser(
         id: json['id'],
@@ -27,6 +31,7 @@ class MidManUser {
         phone: json['phone'],
         role: json['role'],
         accountType: json['account_type'],
+        trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),
         kycStatus: json['kyc_status'],
       );
 }
@@ -170,4 +175,33 @@ const kServiceCategories = [
   ServiceCategoryOption('transportation', 'Transport', 'Airport transfers & rides'),
   ServiceCategoryOption('personal_concierge', 'Personal Concierge', 'Anything else - just ask'),
   ServiceCategoryOption('other', 'Other', 'Tell us what you need'),
+];
+
+/// Membership tier metadata for the plan picker. Pricing isn't set yet -
+/// "Subscriptions fees right amounts will be added later".
+class SubscriptionTier {
+  final String value; // matches the backend AccountType enum
+  final String label;
+  final List<String> features;
+
+  const SubscriptionTier(this.value, this.label, this.features);
+}
+
+const kSubscriptionTiers = [
+  SubscriptionTier('payg', 'Pay As You Go', [
+    'Unlimited use, charged per service',
+    'No saved beneficiaries - enter details each time',
+    'No history of past requests',
+  ]),
+  SubscriptionTier('standard', 'Standard', [
+    'Save beneficiaries you look after',
+    'Full history of past requests',
+    'Faster processing than PAYG',
+    'Recurring payments allowed',
+  ]),
+  SubscriptionTier('pro', 'Pro', [
+    'Everything in Standard',
+    'Priority - served first in the queue',
+    'Free digital assistance (e.g. document help)',
+  ]),
 ];

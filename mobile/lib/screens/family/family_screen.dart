@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
+import '../account/subscription_screen.dart';
 
 class FamilyScreen extends StatefulWidget {
   const FamilyScreen({super.key});
@@ -19,7 +20,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     _future = ApiService.listBeneficiaries();
   }
 
-  void _reload() => setState(() => _future = ApiService.listBeneficiaries());
+  void _reload() => setState(() {
+        _future = ApiService.listBeneficiaries();
+      });
 
   Future<void> _addBeneficiary() async {
     final nameController = TextEditingController();
@@ -48,12 +51,42 @@ class _FamilyScreenState extends State<FamilyScreen> {
     );
 
     if (result == true && nameController.text.trim().isNotEmpty) {
-      await ApiService.createBeneficiary(
-        fullName: nameController.text.trim(),
-        relationshipType: relationshipController.text.trim().isEmpty ? 'Other' : relationshipController.text.trim(),
-        address: addressController.text.trim().isEmpty ? null : addressController.text.trim(),
+      try {
+        await ApiService.createBeneficiary(
+          fullName: nameController.text.trim(),
+          relationshipType: relationshipController.text.trim().isEmpty ? 'Other' : relationshipController.text.trim(),
+          address: addressController.text.trim().isEmpty ? null : addressController.text.trim(),
+        );
+        _reload();
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        if (e.statusCode == 403) {
+          _showUpgradePrompt(e.message);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    }
+  }
+
+  Future<void> _showUpgradePrompt(String message) async {
+    final shouldUpgrade = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Upgrade needed'),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Not now')),
+          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('View plans')),
+        ],
+      ),
+    );
+    if (shouldUpgrade == true && mounted) {
+      final user = await ApiService.me();
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType)),
       );
-      _reload();
     }
   }
 

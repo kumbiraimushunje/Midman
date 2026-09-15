@@ -15,7 +15,8 @@ String get _baseUrl =>
 
 class ApiException implements Exception {
   final String message;
-  ApiException(this.message);
+  final int statusCode;
+  ApiException(this.message, {this.statusCode = 0});
   @override
   String toString() => message;
 }
@@ -49,7 +50,7 @@ class ApiService {
     try {
       detail = (jsonDecode(res.body)['detail'] ?? res.body).toString();
     } catch (_) {}
-    throw ApiException(detail);
+    throw ApiException(detail, statusCode: res.statusCode);
   }
 
   static Future<void> register({
@@ -93,6 +94,16 @@ class ApiService {
 
   static Future<MidManUser> me() async {
     final res = await http.get(Uri.parse('$_baseUrl/me'), headers: await _authHeaders());
+    return MidManUser.fromJson(_decode(res));
+  }
+
+  /// [accountType] is one of 'payg' | 'standard' | 'pro'.
+  static Future<MidManUser> changeSubscription(String accountType) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/me/subscription'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'account_type': accountType}),
+    );
     return MidManUser.fromJson(_decode(res));
   }
 

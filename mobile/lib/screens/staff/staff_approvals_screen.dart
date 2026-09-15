@@ -20,7 +20,9 @@ class _StaffApprovalsScreenState extends State<StaffApprovalsScreen> {
     _future = ApiService.allRequests(status: 'approval_required');
   }
 
-  void _reload() => setState(() => _future = ApiService.allRequests(status: 'approval_required'));
+  void _reload() => setState(() {
+        _future = ApiService.allRequests(status: 'approval_required');
+      });
 
   Future<void> _decide(ServiceRequest request, bool approve) async {
     final commentController = TextEditingController();
