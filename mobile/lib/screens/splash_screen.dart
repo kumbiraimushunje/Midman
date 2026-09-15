@@ -23,14 +23,14 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               children: [
                 const Spacer(flex: 3),
-                Icon(Icons.spa_outlined, color: const Color(0xFFC9A24B), size: 40),
+                Icon(Icons.handshake_outlined, color: const Color(0xFFC9A24B), size: 40),
                 const SizedBox(height: 16),
                 Text(
-                  'CONCIERGE',
+                  'MidMan',
                   style: GoogleFonts.playfairDisplay(
                     color: Colors.white,
-                    fontSize: 32,
-                    letterSpacing: 4,
+                    fontSize: 40,
+                    letterSpacing: 1,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

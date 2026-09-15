@@ -77,19 +77,18 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
   }
 
   Future<void> _attachEvidence() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf', 'doc', 'docx'],
-      withData: true,
     );
-    final files = result?.files ?? [];
-    if (files.isEmpty || files.first.bytes == null) return;
+    if (files.isEmpty) return;
     final file = files.first;
+    final bytes = await file.readAsBytes();
 
     final ext = (file.extension ?? '').toLowerCase();
     await _runAction(() => ApiService.uploadEvidence(
           requestId: widget.requestId,
-          bytes: file.bytes!,
+          bytes: bytes,
           filename: file.name,
           fileType: _imageExtensions.contains(ext) ? 'photo' : 'receipt',
           caption: 'Uploaded by staff',

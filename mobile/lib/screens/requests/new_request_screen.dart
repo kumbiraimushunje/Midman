@@ -76,13 +76,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf', 'doc', 'docx'],
-      withData: true, // required on web; bytes come back on every platform this way
     );
-    if (result != null && result.files.isNotEmpty) {
-      setState(() => _attachedFile = result.files.single);
+    if (files.isNotEmpty) {
+      setState(() => _attachedFile = files.first);
     }
   }
 
@@ -105,11 +104,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       );
 
       final attached = _attachedFile;
-      if (attached != null && attached.bytes != null) {
+      if (attached != null) {
         final ext = (attached.extension ?? '').toLowerCase();
         await ApiService.uploadEvidence(
           requestId: request.id,
-          bytes: attached.bytes!,
+          bytes: await attached.readAsBytes(),
           filename: attached.name,
           fileType: _imageExtensions.contains(ext) ? 'photo' : 'document',
         );
