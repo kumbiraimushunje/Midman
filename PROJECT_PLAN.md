@@ -96,7 +96,14 @@ and seeded with demo accounts.
       against a clean database (full smoke test passing), Neon stamped as
       up to date with zero drift (`alembic check`); `app/models.py` is now
       the source of truth for schema changes, not `create_all`
-- [ ] Swap local-disk evidence storage for S3 (or equivalent) before production
+- [x] Evidence storage swapped to S3: private bucket (`midmanevidencebucket`,
+      eu-north-1), IAM user scoped to only `s3:PutObject`/`s3:GetObject` on
+      the `evidence/` prefix, served via presigned URLs regenerated on every
+      read (not a permanent public link). Local disk remains the automatic
+      fallback when S3 isn't configured, for dependency-free local dev.
+      Verified end-to-end: uploaded a real file through the API, confirmed
+      it lands in S3, fetched it back through a presigned URL (HTTP 200,
+      correct content), and confirmed the app's evidence tile opens it.
 
 ### Phase 2 — Admin / staff tooling
 Web or app-based queue for staff to pick up requests, update status, attach

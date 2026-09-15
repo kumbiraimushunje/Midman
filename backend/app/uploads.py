@@ -47,9 +47,14 @@ def _s3_enabled() -> bool:
 
 
 def _s3_client():
+    # boto3's default endpoint resolution omits the region from the hostname
+    # for some regions (e.g. eu-north-1), which S3 then answers with a 307
+    # redirect even though the request was signed for the right region.
+    # Pinning endpoint_url avoids that entirely.
     return boto3.client(
         "s3",
         region_name=settings.aws_region,
+        endpoint_url=f"https://s3.{settings.aws_region}.amazonaws.com",
         aws_access_key_id=settings.aws_access_key_id or None,
         aws_secret_access_key=settings.aws_secret_access_key or None,
     )
