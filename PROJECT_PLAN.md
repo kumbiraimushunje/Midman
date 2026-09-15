@@ -66,7 +66,7 @@ Flutter, Python, PostgreSQL client libs, VS Code extensions, project
 scaffold, Git, Neon (cloud Postgres, used for both dev and prod) connected
 and seeded with demo accounts.
 
-### Phase 1 — MVP core (in progress, scaffolded this session)
+### Phase 1 — MVP core (done)
 - [x] Data model: User, Beneficiary, ServiceRequest, RequestEvent, Evidence
 - [x] Member ID + Request Number generation
 - [x] Register / login (JWT), soft-delete account endpoint
