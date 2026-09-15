@@ -23,8 +23,12 @@ class ApiException implements Exception {
 class ApiService {
   static final _storage = const FlutterSecureStorage();
 
-  /// Exposed so screens can build full URLs for evidence files (e.g. '$baseUrl${evidence.fileUrl}').
   static String get baseUrl => _baseUrl;
+
+  /// Evidence file_url is either an absolute URL (S3 presigned link) or a
+  /// path relative to the API (local-disk dev fallback, e.g. "/uploads/x.pdf").
+  static String resolveFileUrl(String fileUrl) =>
+      fileUrl.startsWith('http') ? fileUrl : '$_baseUrl$fileUrl';
 
   static Future<String?> get _token => _storage.read(key: 'access_token');
 

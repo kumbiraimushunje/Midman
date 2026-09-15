@@ -17,5 +17,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = "notifications@midman.app"
 
+    # Leave s3_bucket_name blank and evidence uploads fall back to local
+    # disk storage (backend/uploads/) - no AWS needed for local dev.
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_region: str = "us-east-1"
+    s3_bucket_name: str = ""
+
 
 settings = Settings()

@@ -114,7 +114,7 @@ class _EvidenceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = '${ApiService.baseUrl}${evidence.fileUrl}';
+    final url = ApiService.resolveFileUrl(evidence.fileUrl);
     final isPhoto = evidence.fileType == 'photo';
 
     return Padding(

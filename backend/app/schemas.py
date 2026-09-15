@@ -3,9 +3,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
 from .models import AccountType, KYCStatus, RequestStatus, ServiceCategory, UserRole
+from .uploads import resolve_file_url
 
 
 class RegisterRequest(BaseModel):
@@ -87,6 +88,14 @@ class EvidenceOut(BaseModel):
     file_type: str
     caption: Optional[str] = None
     created_at: datetime
+
+    @field_validator("file_url")
+    @classmethod
+    def _resolve_url(cls, stored_value: str) -> str:
+        """DB stores a stable reference (local path or S3 key); this turns it
+        into a URL that's actually fetchable right now, generating a fresh
+        presigned S3 URL on every read rather than a static one that expires."""
+        return resolve_file_url(stored_value)
 
 
 class ServiceRequestOut(BaseModel):

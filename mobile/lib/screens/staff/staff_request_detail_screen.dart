@@ -154,7 +154,7 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
                         title: Text(e.caption?.isNotEmpty == true ? e.caption! : e.fileType),
                         subtitle: Text(DateFormat('d MMM yyyy, HH:mm').format(e.createdAt.toLocal())),
                         trailing: const Icon(Icons.open_in_new, size: 18),
-                        onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}${e.fileUrl}'), mode: LaunchMode.externalApplication),
+                        onTap: () => launchUrl(Uri.parse(ApiService.resolveFileUrl(e.fileUrl)), mode: LaunchMode.externalApplication),
                       )),
                 ],
                 const SizedBox(height: 24),
