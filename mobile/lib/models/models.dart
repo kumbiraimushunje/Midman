@@ -61,6 +61,24 @@ class RequestEvent {
       );
 }
 
+class EvidenceOut {
+  final String id;
+  final String fileUrl;
+  final String fileType; // "photo" | "document" | "receipt"
+  final String? caption;
+  final DateTime createdAt;
+
+  EvidenceOut({required this.id, required this.fileUrl, required this.fileType, this.caption, required this.createdAt});
+
+  factory EvidenceOut.fromJson(Map<String, dynamic> json) => EvidenceOut(
+        id: json['id'],
+        fileUrl: json['file_url'],
+        fileType: json['file_type'],
+        caption: json['caption'],
+        createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
 class ServiceRequest {
   final String id;
   final String requestNumber;
@@ -73,6 +91,7 @@ class ServiceRequest {
   final String? fraudRiskLevel;
   final DateTime createdAt;
   final List<RequestEvent> events;
+  final List<EvidenceOut> evidence;
 
   ServiceRequest({
     required this.id,
@@ -86,6 +105,7 @@ class ServiceRequest {
     this.fraudRiskLevel,
     required this.createdAt,
     required this.events,
+    required this.evidence,
   });
 
   factory ServiceRequest.fromJson(Map<String, dynamic> json) => ServiceRequest(
@@ -107,6 +127,9 @@ class ServiceRequest {
         createdAt: DateTime.parse(json['created_at']),
         events: (json['events'] as List? ?? [])
             .map((e) => RequestEvent.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        evidence: (json['evidence'] as List? ?? [])
+            .map((e) => EvidenceOut.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

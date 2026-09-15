@@ -1,7 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
+
+const _imageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'heic'};
 
 /// The "smart request form": pick a category, optionally who it's for, then
 /// fill in the details the AI/staff need. Category and description can be
@@ -27,6 +30,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   bool _loading = false;
   bool _loadingBeneficiaries = true;
   String? _error;
+  PlatformFile? _attachedFile;
 
   @override
   void initState() {
@@ -49,6 +53,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
   }
 
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf', 'doc', 'docx'],
+      withData: true, // required on web; bytes come back on every platform this way
+    );
+    if (result != null && result.files.isNotEmpty) {
+      setState(() => _attachedFile = result.files.single);
+    }
+  }
+
   Future<void> _submit() async {
     if (_category == null || _titleController.text.trim().isEmpty) {
       setState(() => _error = 'Please choose a category and a short title');
@@ -59,13 +74,25 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
       _error = null;
     });
     try {
-      await ApiService.createServiceRequest(
+      final request = await ApiService.createServiceRequest(
         category: _category!,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
         beneficiaryId: _beneficiaryId,
         amount: _amountController.text.trim().isEmpty ? null : num.tryParse(_amountController.text.trim()),
       );
+
+      final attached = _attachedFile;
+      if (attached != null && attached.bytes != null) {
+        final ext = (attached.extension ?? '').toLowerCase();
+        await ApiService.uploadEvidence(
+          requestId: request.id,
+          bytes: attached.bytes!,
+          filename: attached.name,
+          fileType: _imageExtensions.contains(ext) ? 'photo' : 'document',
+        );
+      }
+
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
@@ -120,6 +147,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               controller: _amountController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(labelText: 'Amount, if known (optional)'),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _pickFile,
+              icon: const Icon(Icons.attach_file),
+              label: Text(_attachedFile == null ? 'Attach invoice / document / photo (optional)' : _attachedFile!.name),
             ),
             if (_error != null) ...[
               const SizedBox(height: 16),

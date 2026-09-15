@@ -23,6 +23,9 @@ class ApiException implements Exception {
 class ApiService {
   static final _storage = const FlutterSecureStorage();
 
+  /// Exposed so screens can build full URLs for evidence files (e.g. '$baseUrl${evidence.fileUrl}').
+  static String get baseUrl => _baseUrl;
+
   static Future<String?> get _token => _storage.read(key: 'access_token');
 
   static Future<Map<String, String>> _authHeaders() async {
@@ -133,5 +136,34 @@ class ApiService {
       }),
     );
     return ServiceRequest.fromJson(_decode(res));
+  }
+
+  static Future<ServiceRequest> getRequest(String id) async {
+    final res = await http.get(Uri.parse('$_baseUrl/service-requests/$id'), headers: await _authHeaders());
+    return ServiceRequest.fromJson(_decode(res));
+  }
+
+  /// [fileType] is one of 'photo' | 'document' | 'receipt' (matches the backend's EvidenceType).
+  /// Takes raw bytes (not a dart:io File) so it works on web, mobile, and desktop alike.
+  static Future<void> uploadEvidence({
+    required String requestId,
+    required List<int> bytes,
+    required String filename,
+    required String fileType,
+    String? caption,
+  }) async {
+    final token = await _token;
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_baseUrl/service-requests/$requestId/evidence'),
+    );
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.fields['file_type'] = fileType;
+    if (caption != null) request.fields['caption'] = caption;
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    _decode(res);
   }
 }

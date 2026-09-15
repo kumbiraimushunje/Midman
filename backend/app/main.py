@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from . import schemas
@@ -11,6 +12,8 @@ from .id_generator import generate_member_id, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
     Beneficiary,
+    Evidence,
+    EvidenceType,
     RequestEvent,
     RequestStatus,
     ServiceRequest,
@@ -19,10 +22,12 @@ from .models import (
 )
 from .notifications import notify_decision, notify_status_change
 from .security import create_access_token, get_current_user, hash_password, verify_password
+from .uploads import UPLOAD_DIR, save_upload
 
 Base.metadata.create_all(bind=engine)  # dev convenience; swap for Alembic migrations before production
 
 app = FastAPI(title="MidMan API")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -166,6 +171,51 @@ def _get_request_or_404(request_id, db: Session) -> ServiceRequest:
     if req is None:
         raise HTTPException(404, "Request not found")
     return req
+
+
+@app.get("/service-requests/{request_id}", response_model=schemas.ServiceRequestOut)
+def get_request(
+    request_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = _get_request_or_404(request_id, db)
+    is_owner = req.requester_id == current_user.id
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    if not (is_owner or is_staff):
+        raise HTTPException(403, "Not your request")
+    return req
+
+
+@app.post("/service-requests/{request_id}/evidence", response_model=schemas.EvidenceOut, status_code=201)
+async def upload_evidence(
+    request_id,
+    file: UploadFile = File(...),
+    file_type: EvidenceType = Form(...),
+    caption: str | None = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The requester can attach an invoice/photo when submitting a request; staff attach
+    completion proof (photos, receipts, delivery confirmation) as work progresses."""
+    req = _get_request_or_404(request_id, db)
+    is_owner = req.requester_id == current_user.id
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    if not (is_owner or is_staff):
+        raise HTTPException(403, "Not your request")
+
+    file_url = await save_upload(file)
+    evidence = Evidence(
+        request_id=req.id,
+        file_url=file_url,
+        file_type=file_type,
+        caption=caption,
+        uploaded_by_id=current_user.id,
+    )
+    db.add(evidence)
+    db.commit()
+    db.refresh(evidence)
+    return evidence
 
 
 @app.post("/service-requests/{request_id}/approve", response_model=schemas.ServiceRequestOut)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
@@ -22,14 +23,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     _future = _load();
   }
 
-  Future<ServiceRequest?> _load() async {
-    final all = await ApiService.myRequests();
-    try {
-      return all.firstWhere((r) => r.id == widget.requestId);
-    } catch (_) {
-      return null;
-    }
-  }
+  Future<ServiceRequest?> _load() => ApiService.getRequest(widget.requestId);
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +57,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 const Text('Timeline', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
                 ...req.events.map((e) => _TimelineTile(event: e)),
+                if (req.evidence.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text('Evidence & documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  ...req.evidence.map((e) => _EvidenceTile(evidence: e)),
+                ],
               ],
             );
           },
@@ -103,6 +103,58 @@ class _TimelineTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EvidenceTile extends StatelessWidget {
+  final EvidenceOut evidence;
+  const _EvidenceTile({required this.evidence});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = '${ApiService.baseUrl}${evidence.fileUrl}';
+    final isPhoto = evidence.fileType == 'photo';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: isPhoto
+                    ? Image.network(url, width: 48, height: 48, fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48))
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        color: const Color(0xFFF1EEE7),
+                        child: const Icon(Icons.description_outlined),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(evidence.caption?.isNotEmpty == true ? evidence.caption! : evidence.fileType,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(DateFormat('d MMM yyyy, HH:mm').format(evidence.createdAt.toLocal()),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.open_in_new, size: 18, color: Colors.grey),
+            ],
+          ),
+        ),
       ),
     );
   }
