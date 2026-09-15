@@ -78,9 +78,14 @@ scaffold, Git.
 - [x] Flutter: themed splash, login, register (KYC-lite), home shell with
       bottom nav (Home/Requests/Family/Account), requests list, new-request
       form, request detail timeline, beneficiaries screen, account screen
-- [ ] Evidence upload (photo/document) wired from staff side into the app
+- [x] Evidence & document uploads: requester attaches an invoice/photo when
+      creating a request, staff attach completion proof; local-disk storage
+      behind `/service-requests/{id}/evidence`, shown in the app as photo
+      thumbnails / tappable document rows
+- [ ] Staff/admin screens (currently API-only, tested via curl)
 - [ ] Real SMTP provider connected
 - [ ] Alembic migrations (currently using `create_all` for dev speed)
+- [ ] Swap local-disk evidence storage for S3 (or equivalent) before production
 
 ### Phase 2 — Admin / staff tooling
 Web or app-based queue for staff to pick up requests, update status, attach
