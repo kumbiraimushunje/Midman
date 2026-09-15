@@ -1,11 +1,57 @@
 import 'package:flutter/material.dart';
 
+import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
 import '../requests/new_request_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _promptController = TextEditingController();
+  bool _parsing = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handlePrompt(String value) async {
+    if (value.trim().isEmpty) return;
+    setState(() {
+      _parsing = true;
+      _error = null;
+    });
+    try {
+      final result = await ApiService.parseRequestText(value.trim());
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => NewRequestScreen(
+            initialCategory: result.category,
+            prefillTitle: result.title,
+            prefillDescription: result.description,
+            prefillAmount: result.amount,
+            prefillBeneficiaryId: result.beneficiaryId,
+            unmatchedBeneficiaryName: result.beneficiaryNameHint,
+            aiHints: result.missingInfo,
+          ),
+        ),
+      );
+      _promptController.clear();
+    } catch (e) {
+      setState(() => _error = 'Could not process that - $e');
+    } finally {
+      if (mounted) setState(() => _parsing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,16 +86,30 @@ class HomeScreen extends StatelessWidget {
                 const Text('Type or speak', style: TextStyle(color: Colors.grey)),
                 const SizedBox(height: 16),
                 TextField(
+                  controller: _promptController,
+                  enabled: !_parsing,
+                  textInputAction: TextInputAction.send,
                   decoration: InputDecoration(
                     hintText: "I'm your personal concierge...",
-                    suffixIcon: const Icon(Icons.mic, color: MidManColors.gold),
+                    suffixIcon: _parsing
+                        ? const Padding(
+                            padding: EdgeInsets.all(14),
+                            child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        : ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _promptController,
+                            builder: (context, value, _) => IconButton(
+                              icon: Icon(value.text.trim().isEmpty ? Icons.mic : Icons.arrow_forward, color: MidManColors.gold),
+                              onPressed: value.text.trim().isEmpty ? null : () => _handlePrompt(_promptController.text),
+                            ),
+                          ),
                   ),
-                  onSubmitted: (value) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => NewRequestScreen(prefillDescription: value)),
-                    );
-                  },
+                  onSubmitted: _handlePrompt,
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_error!, style: const TextStyle(color: MidManColors.danger, fontSize: 12)),
+                ],
               ],
             ),
           ),

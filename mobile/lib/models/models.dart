@@ -1,3 +1,41 @@
+class AiParseResult {
+  final String category;
+  final String title;
+  final String? description;
+  final String? beneficiaryId;
+  final String? beneficiaryNameHint;
+  final num? amount;
+  final List<String> missingInfo;
+  final bool aiAvailable;
+
+  AiParseResult({
+    required this.category,
+    required this.title,
+    this.description,
+    this.beneficiaryId,
+    this.beneficiaryNameHint,
+    this.amount,
+    required this.missingInfo,
+    required this.aiAvailable,
+  });
+
+  factory AiParseResult.fromJson(Map<String, dynamic> json) => AiParseResult(
+        category: json['category'],
+        title: json['title'],
+        description: json['description'],
+        beneficiaryId: json['beneficiary_id'],
+        beneficiaryNameHint: json['beneficiary_name_hint'],
+        amount: switch (json['amount']) {
+          null => null,
+          num n => n,
+          String s => num.tryParse(s),
+          _ => null,
+        },
+        missingInfo: (json['missing_info'] as List? ?? []).map((e) => e.toString()).toList(),
+        aiAvailable: json['ai_available'] ?? true,
+      );
+}
+
 class MidManUser {
   final String id;
   final String memberId;

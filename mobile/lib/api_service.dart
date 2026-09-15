@@ -107,6 +107,18 @@ class ApiService {
     return MidManUser.fromJson(_decode(res));
   }
 
+  /// Turns free text into a structured request draft. Never creates or
+  /// submits anything itself - the customer still reviews and confirms
+  /// every field before it becomes a real request.
+  static Future<AiParseResult> parseRequestText(String text) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/ai/parse-request'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'text': text}),
+    );
+    return AiParseResult.fromJson(_decode(res));
+  }
+
   static Future<List<Beneficiary>> listBeneficiaries() async {
     final res = await http.get(Uri.parse('$_baseUrl/beneficiaries'), headers: await _authHeaders());
     final data = _decode(res) as List;

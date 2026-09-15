@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
+import '../../theme.dart';
 
 const _imageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'heic'};
 
@@ -13,8 +14,22 @@ const _imageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'heic'};
 class NewRequestScreen extends StatefulWidget {
   final String? initialCategory;
   final String? prefillDescription;
+  final String? prefillTitle;
+  final num? prefillAmount;
+  final String? prefillBeneficiaryId;
+  final String? unmatchedBeneficiaryName;
+  final List<String> aiHints;
 
-  const NewRequestScreen({super.key, this.initialCategory, this.prefillDescription});
+  const NewRequestScreen({
+    super.key,
+    this.initialCategory,
+    this.prefillDescription,
+    this.prefillTitle,
+    this.prefillAmount,
+    this.prefillBeneficiaryId,
+    this.unmatchedBeneficiaryName,
+    this.aiHints = const [],
+  });
 
   @override
   State<NewRequestScreen> createState() => _NewRequestScreenState();
@@ -36,8 +51,15 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   void initState() {
     super.initState();
     _category = widget.initialCategory;
+    _beneficiaryId = widget.prefillBeneficiaryId;
     if (widget.prefillDescription != null) {
       _descriptionController.text = widget.prefillDescription!;
+    }
+    if (widget.prefillTitle != null) {
+      _titleController.text = widget.prefillTitle!;
+    }
+    if (widget.prefillAmount != null) {
+      _amountController.text = widget.prefillAmount.toString();
     }
     _loadBeneficiaries();
   }
@@ -110,6 +132,37 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            if (widget.aiHints.isNotEmpty || widget.unmatchedBeneficiaryName != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(color: const Color(0xFFF1EEE7), borderRadius: BorderRadius.circular(14)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.auto_awesome, size: 16, color: MidManColors.gold),
+                        SizedBox(width: 8),
+                        Text('I filled in what I could - please check:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      ],
+                    ),
+                    if (widget.unmatchedBeneficiaryName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          '• Sounds like this is for "${widget.unmatchedBeneficiaryName}", but I couldn\'t find them in your Family list - add them there first, or just describe who it\'s for below.',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ...widget.aiHints.map((h) => Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text('• $h', style: const TextStyle(fontSize: 12)),
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             DropdownButtonFormField<String>(
               initialValue: _category,
               decoration: const InputDecoration(labelText: 'Category'),

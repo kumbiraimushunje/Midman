@@ -7,6 +7,7 @@ from sqlalchemy import case
 from sqlalchemy.orm import Session
 
 from . import schemas
+from .ai_concierge import parse_request_text
 from .database import get_db
 from .fraud_check import run_fraud_check
 from .id_generator import generate_member_id, generate_request_number
@@ -97,6 +98,21 @@ def change_subscription(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+# ---------- AI concierge ----------
+
+@app.post("/ai/parse-request", response_model=schemas.AiParseResponse)
+def ai_parse_request(
+    payload: schemas.AiParseRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Turns free text ("Pay my daughter's school fees") into a structured
+    draft the customer reviews and edits before submitting - this endpoint
+    never creates a request itself."""
+    beneficiaries = db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
+    return parse_request_text(payload.text, beneficiaries)
 
 
 # ---------- Beneficiaries ----------

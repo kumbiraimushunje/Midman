@@ -132,3 +132,18 @@ class DecisionRequest(BaseModel):
 class StatusUpdateRequest(BaseModel):
     status: RequestStatus
     note: Optional[str] = None
+
+
+class AiParseRequest(BaseModel):
+    text: str
+
+
+class AiParseResponse(BaseModel):
+    category: ServiceCategory
+    title: str
+    description: Optional[str] = None
+    beneficiary_id: Optional[uuid.UUID] = None
+    beneficiary_name_hint: Optional[str] = None
+    amount: Optional[Decimal] = None
+    missing_info: list[str] = []
+    ai_available: bool = True
