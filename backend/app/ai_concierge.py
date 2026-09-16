@@ -115,6 +115,14 @@ _INVOICE_SYSTEM_PROMPT = (
     "uploaded an invoice or price quote (school fees, a medical bill, a supplier's "
     "quote, etc). Read it and turn it into a structured draft request - the same "
     "kind of draft you'd build from a typed description.\n\n"
+    "This is a financial document a human will review before any money moves, so "
+    "accuracy matters more than completeness: only report a vendor, amount, name, or "
+    "any other detail you can actually read in the document. Never invent or guess "
+    "plausible-sounding values that aren't really there.\n\n"
+    "- legible: true only if this is genuinely readable as an invoice/quote with real "
+    "content; false if the image/text is blank, unrelated, corrupted, or otherwise "
+    "doesn't contain an actual invoice or quote to read. When false, every other field "
+    "below should be null/empty/\"other\" - do not fabricate a plausible-looking result.\n"
     f"- category must be exactly one of: {', '.join(_VALID_CATEGORIES)}\n"
     "- title: a short (under 60 char) summary naming the vendor/institution and what it's for\n"
     "- description: the key line items and any reference/invoice number, or null if the "
@@ -127,7 +135,7 @@ _INVOICE_SYSTEM_PROMPT = (
     "- missing_info: a short list (0-3 items) of the most important details a human would "
     "still need to confirm before this could be actioned - e.g. an unclear total, a missing "
     "due date. Empty list if the document is clear.\n\n"
-    'Respond with strict JSON: {"category": ..., "title": ..., "description": ..., '
+    'Respond with strict JSON: {"legible": ..., "category": ..., "title": ..., "description": ..., '
     '"beneficiary_id": ..., "beneficiary_name_hint": ..., "amount": ..., "missing_info": [...]}'
 )
 
@@ -187,6 +195,15 @@ def parse_invoice_document(
             timeout=20,
         )
         result = json.loads(response.choices[0].message.content)
+
+        if not result.get("legible", True):
+            # Belt-and-braces: even if the model still filled in other fields
+            # despite being told not to, a document it says it couldn't
+            # actually read is discarded outright rather than trusted.
+            return _fallback(
+                filename,
+                "Couldn't clearly read this as an invoice or quote - please check the details below.",
+            )
 
         category = result.get("category")
         if category not in _VALID_CATEGORIES:
