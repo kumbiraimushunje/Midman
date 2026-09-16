@@ -143,7 +143,19 @@ updates, evidence, and fraud-risk flags visible before approving.
       PDF (no extractable text layer) isn't supported without adding a
       rasterizer dependency; that case degrades to a fallback message
       suggesting a photo instead, same as when the AI is unavailable.
-- [ ] Quote comparison summaries across suppliers
+- [x] Quote comparison summaries across suppliers: staff attach one evidence
+      file per supplier (file_type=quote, with a supplier_name) from the
+      Request Detail screen's "Add a supplier quote" button, then
+      "Compare quotes" (`POST /service-requests/{id}/quote-comparison`,
+      `compare_quotes()` in `app/ai_concierge.py`) reads all of them
+      together - photos via vision, text-based PDFs via pypdf - into one
+      side-by-side summary (per-supplier price/notes, an overall summary,
+      and an optional recommendation), cached on the request
+      (`quote_comparison` JSONB column) until staff regenerate it. Staff/
+      admin/approver only; requires at least 2 quotes. Same anti-
+      hallucination guard as invoice parsing: a supplier's amount/notes are
+      only ever what the model could actually read from that supplier's
+      own quote, never inferred or borrowed from another one.
 - [ ] General chatbot/customer support beyond request creation
 
 ### Phase 5 — Reporting & compliance (dashboard done)

@@ -93,6 +93,26 @@ async def save_upload(file: UploadFile) -> str:
     return f"/uploads/{stored_name}"
 
 
+def content_type_for(stored_value: str) -> str:
+    """The MIME type for a stored reference, inferred from its extension -
+    the same mapping save_upload() validated against on the way in."""
+    return _CONTENT_TYPES.get(Path(stored_value).suffix.lower(), "application/octet-stream")
+
+
+def read_upload_bytes(stored_value: str) -> bytes:
+    """Reads back the raw bytes of a previously saved upload - unlike
+    resolve_file_url() (a link for a browser to fetch later), this is for
+    server-side code that needs the actual content right now, e.g. to feed
+    a document to the AI concierge."""
+    if stored_value.startswith("/"):
+        return (UPLOAD_DIR / Path(stored_value).name).read_bytes()
+    try:
+        obj = _s3_client().get_object(Bucket=settings.s3_bucket_name, Key=stored_value)
+        return obj["Body"].read()
+    except ClientError as e:
+        raise HTTPException(502, f"Could not read file from S3: {e}")
+
+
 def resolve_file_url(stored_value: str) -> str:
     """Turns a stored reference (from save_upload) into a URL a client can
     fetch right now. Local paths pass through unchanged (served by the

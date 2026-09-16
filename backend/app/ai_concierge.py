@@ -229,3 +229,94 @@ def parse_invoice_document(
     except Exception:
         logger.exception("AI invoice parsing failed")
         return _fallback(filename, "AI assistance hit an error reading this document - please check the details below.")
+
+
+_COMPARISON_SYSTEM_PROMPT = (
+    "You are the intake assistant for MidMan, a concierge platform. Staff have gathered "
+    "price quotes from multiple suppliers for the same job and want a quick comparison "
+    "before presenting one option to the customer.\n\n"
+    "This is a financial comparison a human will act on, so accuracy matters more than "
+    "completeness: only report an amount or detail you can actually read for that specific "
+    "supplier. Never invent or estimate a figure that isn't actually shown, and never let a "
+    "detail from one supplier's quote leak into another's.\n\n"
+    "For each supplier listed below, return: supplier_name (use exactly the name given), "
+    "amount (the total price as a plain number, or null if you can't read one), and notes "
+    "(key terms - delivery time, inclusions/exclusions, anything a human should know - or "
+    "null if the quote was unreadable or has nothing beyond the price).\n\n"
+    "Then write:\n"
+    "- summary: 1-3 sentences comparing the suppliers (price differences, what's included where)\n"
+    "- recommendation: which supplier looks best and why, in one sentence - or null if the "
+    "quotes are too unclear or too similar to recommend one\n\n"
+    'Respond with strict JSON: {"suppliers": [{"supplier_name": ..., "amount": ..., "notes": ...}], '
+    '"summary": ..., "recommendation": ...}'
+)
+
+
+def _comparison_fallback(supplier_names: list[str], summary: str) -> dict:
+    return {
+        "ai_available": False,
+        "summary": summary,
+        "recommendation": None,
+        "suppliers": [{"supplier_name": n, "amount": None, "notes": None} for n in supplier_names],
+    }
+
+
+def compare_quotes(quotes: list[dict]) -> dict:
+    """quotes: [{"supplier_name": str, "content_type": str, "data": bytes}, ...] - at
+    least two, already read from storage by the caller. Builds a single side-by-side
+    comparison rather than parsing each quote separately, so the model can reason about
+    relative price/terms directly. Still just an aid for staff to review, not a decision."""
+    supplier_names = [q["supplier_name"] for q in quotes]
+
+    if not settings.openai_api_key:
+        return _comparison_fallback(supplier_names, "AI assistance isn't available right now - review the attached quotes manually.")
+
+    try:
+        client = OpenAI(api_key=settings.openai_api_key)
+        user_content = [{"type": "text", "text": f"Suppliers to compare: {', '.join(supplier_names)}"}]
+        for q in quotes:
+            if q["content_type"] == "application/pdf":
+                text = _extract_pdf_text(q["data"])
+                user_content.append(
+                    {
+                        "type": "text",
+                        "text": f"--- Quote from {q['supplier_name']} ---\n" + (text or "(no readable text in this PDF)"),
+                    }
+                )
+            else:
+                b64 = base64.b64encode(q["data"]).decode("ascii")
+                user_content.append({"type": "text", "text": f"--- Quote from {q['supplier_name']} (photo below) ---"})
+                user_content.append({"type": "image_url", "image_url": {"url": f"data:{q['content_type']};base64,{b64}"}})
+
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": _COMPARISON_SYSTEM_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+            response_format={"type": "json_object"},
+            timeout=30,
+        )
+        result = json.loads(response.choices[0].message.content)
+
+        suppliers = []
+        seen = set()
+        for s in result.get("suppliers") or []:
+            name = s.get("supplier_name")
+            if name not in supplier_names or name in seen:
+                continue  # drop anything not matching a supplier we actually sent
+            seen.add(name)
+            suppliers.append({"supplier_name": name, "amount": s.get("amount"), "notes": s.get("notes")})
+        for name in supplier_names:
+            if name not in seen:
+                suppliers.append({"supplier_name": name, "amount": None, "notes": "Couldn't read this quote clearly."})
+
+        return {
+            "ai_available": True,
+            "summary": result.get("summary") or "",
+            "recommendation": result.get("recommendation"),
+            "suppliers": suppliers,
+        }
+    except Exception:
+        logger.exception("AI quote comparison failed")
+        return _comparison_fallback(supplier_names, "AI assistance hit an error comparing these quotes - review them manually.")

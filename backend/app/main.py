@@ -8,7 +8,7 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from . import schemas
-from .ai_concierge import parse_invoice_document, parse_request_text
+from .ai_concierge import compare_quotes, parse_invoice_document, parse_request_text
 from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
@@ -31,7 +31,7 @@ from .notifications import notify_decision, notify_kyc_decision, notify_status_c
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
-from .uploads import UPLOAD_DIR, save_upload
+from .uploads import UPLOAD_DIR, content_type_for, read_upload_bytes, save_upload
 
 app = FastAPI(title="MidMan API")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -321,11 +321,13 @@ async def upload_evidence(
     file: UploadFile = File(...),
     file_type: EvidenceType = Form(...),
     caption: str | None = Form(None),
+    supplier_name: str | None = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """The requester can attach an invoice/photo when submitting a request; staff attach
-    completion proof (photos, receipts, delivery confirmation) as work progresses."""
+    completion proof (photos, receipts, delivery confirmation) as work progresses, or a
+    supplier's price quote (file_type=quote, with supplier_name) to compare later."""
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
     is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
@@ -338,12 +340,65 @@ async def upload_evidence(
         file_url=file_url,
         file_type=file_type,
         caption=caption,
+        supplier_name=supplier_name if file_type == EvidenceType.quote else None,
         uploaded_by_id=current_user.id,
     )
     db.add(evidence)
     db.commit()
     db.refresh(evidence)
     return evidence
+
+
+@app.get("/service-requests/{request_id}/quote-comparison", response_model=schemas.QuoteComparisonOut | None)
+def get_quote_comparison(
+    request_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    req = _get_request_or_404(request_id, db)
+    if req.quote_comparison is None:
+        return None
+    return {**req.quote_comparison, "generated_at": req.quote_comparison_generated_at}
+
+
+@app.post("/service-requests/{request_id}/quote-comparison", response_model=schemas.QuoteComparisonOut)
+def generate_quote_comparison(
+    request_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """(Re)generates an AI comparison across every quote-type evidence file attached to
+    this request - just an aid for staff deciding which supplier to go with, never
+    binding and never surfaced to the customer directly."""
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    req = _get_request_or_404(request_id, db)
+
+    quote_evidence = (
+        db.query(Evidence)
+        .filter(Evidence.request_id == req.id, Evidence.file_type == EvidenceType.quote)
+        .order_by(Evidence.created_at.asc())
+        .all()
+    )
+    if len(quote_evidence) < 2:
+        raise HTTPException(400, "Need at least 2 supplier quotes attached to compare them.")
+
+    quotes = [
+        {
+            "supplier_name": e.supplier_name or "Unnamed supplier",
+            "content_type": content_type_for(e.file_url),
+            "data": read_upload_bytes(e.file_url),
+        }
+        for e in quote_evidence
+    ]
+    result = compare_quotes(quotes)
+
+    req.quote_comparison = result
+    req.quote_comparison_generated_at = datetime.utcnow()
+    db.commit()
+    return {**result, "generated_at": req.quote_comparison_generated_at}
 
 
 @app.post("/service-requests/{request_id}/approve", response_model=schemas.ServiceRequestOut)

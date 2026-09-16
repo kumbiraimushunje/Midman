@@ -80,6 +80,7 @@ class EvidenceType(str, enum.Enum):
     video = "video"
     document = "document"
     receipt = "receipt"
+    quote = "quote"  # a supplier's price quote, gathered for quote-comparison
 
 
 def new_uuid():
@@ -171,6 +172,11 @@ class ServiceRequest(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     decided_at = Column(DateTime, nullable=True)
 
+    # Cached AI comparison across this request's "quote"-type evidence -
+    # regenerated on demand rather than kept live, so it's just a snapshot.
+    quote_comparison = Column(JSONB, nullable=True)
+    quote_comparison_generated_at = Column(DateTime, nullable=True)
+
     requester = relationship("User", back_populates="requests_made", foreign_keys=[requester_id])
     beneficiary = relationship("Beneficiary", back_populates="requests")
     events = relationship(
@@ -206,6 +212,7 @@ class Evidence(Base):
     file_url = Column(String, nullable=False)
     file_type = Column(Enum(EvidenceType), nullable=False)
     caption = Column(String, nullable=True)
+    supplier_name = Column(String, nullable=True)  # set on quote-type evidence, used by quote comparison
     uploaded_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -93,6 +93,7 @@ class EvidenceOut(BaseModel):
     file_url: str
     file_type: str
     caption: Optional[str] = None
+    supplier_name: Optional[str] = None
     created_at: datetime
 
     @field_validator("file_url")
@@ -226,3 +227,17 @@ class AuditLogOut(BaseModel):
     summary: str
     meta: Optional[dict] = None
     created_at: datetime
+
+
+class SupplierQuoteSummary(BaseModel):
+    supplier_name: str
+    amount: Optional[Decimal] = None
+    notes: Optional[str] = None
+
+
+class QuoteComparisonOut(BaseModel):
+    generated_at: datetime
+    summary: str
+    recommendation: Optional[str] = None
+    suppliers: list[SupplierQuoteSummary]
+    ai_available: bool = True

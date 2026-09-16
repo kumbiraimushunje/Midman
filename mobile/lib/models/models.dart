@@ -240,18 +240,70 @@ class RequestEvent {
 class EvidenceOut {
   final String id;
   final String fileUrl;
-  final String fileType; // "photo" | "document" | "receipt"
+  final String fileType; // "photo" | "video" | "document" | "receipt" | "quote"
   final String? caption;
+  final String? supplierName;
   final DateTime createdAt;
 
-  EvidenceOut({required this.id, required this.fileUrl, required this.fileType, this.caption, required this.createdAt});
+  EvidenceOut({
+    required this.id,
+    required this.fileUrl,
+    required this.fileType,
+    this.caption,
+    this.supplierName,
+    required this.createdAt,
+  });
 
   factory EvidenceOut.fromJson(Map<String, dynamic> json) => EvidenceOut(
         id: json['id'],
         fileUrl: json['file_url'],
         fileType: json['file_type'],
         caption: json['caption'],
+        supplierName: json['supplier_name'],
         createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
+class SupplierQuoteSummary {
+  final String supplierName;
+  final num? amount;
+  final String? notes;
+
+  SupplierQuoteSummary({required this.supplierName, this.amount, this.notes});
+
+  factory SupplierQuoteSummary.fromJson(Map<String, dynamic> json) => SupplierQuoteSummary(
+        supplierName: json['supplier_name'],
+        amount: switch (json['amount']) {
+          null => null,
+          num n => n,
+          String s => num.tryParse(s),
+          _ => null,
+        },
+        notes: json['notes'],
+      );
+}
+
+class QuoteComparison {
+  final DateTime generatedAt;
+  final String summary;
+  final String? recommendation;
+  final List<SupplierQuoteSummary> suppliers;
+  final bool aiAvailable;
+
+  QuoteComparison({
+    required this.generatedAt,
+    required this.summary,
+    this.recommendation,
+    required this.suppliers,
+    required this.aiAvailable,
+  });
+
+  factory QuoteComparison.fromJson(Map<String, dynamic> json) => QuoteComparison(
+        generatedAt: DateTime.parse(json['generated_at']),
+        summary: json['summary'] ?? '',
+        recommendation: json['recommendation'],
+        suppliers: (json['suppliers'] as List? ?? []).map((e) => SupplierQuoteSummary.fromJson(e)).toList(),
+        aiAvailable: json['ai_available'] ?? true,
       );
 }
 

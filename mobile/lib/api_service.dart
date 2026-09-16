@@ -306,14 +306,16 @@ class ApiService {
     return ServiceRequest.fromJson(_decode(res));
   }
 
-  /// [fileType] is one of 'photo' | 'document' | 'receipt' (matches the backend's EvidenceType).
-  /// Takes raw bytes (not a dart:io File) so it works on web, mobile, and desktop alike.
+  /// [fileType] is one of 'photo' | 'video' | 'document' | 'receipt' | 'quote' (matches
+  /// the backend's EvidenceType). [supplierName] only applies to fileType 'quote'. Takes
+  /// raw bytes (not a dart:io File) so it works on web, mobile, and desktop alike.
   static Future<void> uploadEvidence({
     required String requestId,
     required List<int> bytes,
     required String filename,
     required String fileType,
     String? caption,
+    String? supplierName,
   }) async {
     final token = await _token;
     final request = http.MultipartRequest(
@@ -323,10 +325,26 @@ class ApiService {
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
     request.fields['file_type'] = fileType;
     if (caption != null) request.fields['caption'] = caption;
+    if (supplierName != null) request.fields['supplier_name'] = supplierName;
     request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
 
     final streamed = await request.send();
     final res = await http.Response.fromStream(streamed);
     _decode(res);
+  }
+
+  /// Staff only. Returns null until someone has generated a comparison for this
+  /// request (see [generateQuoteComparison]) - does not trigger generation itself.
+  static Future<QuoteComparison?> getQuoteComparison(String requestId) async {
+    final res = await http.get(Uri.parse('$_baseUrl/service-requests/$requestId/quote-comparison'), headers: await _authHeaders());
+    final data = _decode(res);
+    return data == null ? null : QuoteComparison.fromJson(data);
+  }
+
+  /// Staff only. (Re)generates the AI comparison across every quote-type evidence
+  /// file attached to this request - the backend requires at least 2.
+  static Future<QuoteComparison> generateQuoteComparison(String requestId) async {
+    final res = await http.post(Uri.parse('$_baseUrl/service-requests/$requestId/quote-comparison'), headers: await _authHeaders());
+    return QuoteComparison.fromJson(_decode(res));
   }
 }
