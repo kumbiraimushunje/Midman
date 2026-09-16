@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
@@ -48,25 +49,52 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final result = await ApiService.parseRequestText(value.trim());
       if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => NewRequestScreen(
-            initialCategory: result.category,
-            prefillTitle: result.title,
-            prefillDescription: result.description,
-            prefillAmount: result.amount,
-            prefillBeneficiaryId: result.beneficiaryId,
-            unmatchedBeneficiaryName: result.beneficiaryNameHint,
-            aiHints: result.missingInfo,
-          ),
-        ),
-      );
+      await _openPrefilledRequest(result);
       _promptController.clear();
     } catch (e) {
       setState(() => _error = 'Could not process that - $e');
     } finally {
       if (mounted) setState(() => _parsing = false);
     }
+  }
+
+  Future<void> _uploadInvoice() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'],
+    );
+    if (result.isEmpty) return;
+    final file = result.first;
+
+    setState(() {
+      _parsing = true;
+      _error = null;
+    });
+    try {
+      final aiResult = await ApiService.parseInvoiceDocument(bytes: await file.readAsBytes(), filename: file.name);
+      if (!mounted) return;
+      await _openPrefilledRequest(aiResult);
+    } catch (e) {
+      setState(() => _error = 'Could not read that document - $e');
+    } finally {
+      if (mounted) setState(() => _parsing = false);
+    }
+  }
+
+  Future<void> _openPrefilledRequest(AiParseResult result) {
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NewRequestScreen(
+          initialCategory: result.category,
+          prefillTitle: result.title,
+          prefillDescription: result.description,
+          prefillAmount: result.amount,
+          prefillBeneficiaryId: result.beneficiaryId,
+          unmatchedBeneficiaryName: result.beneficiaryNameHint,
+          aiHints: result.missingInfo,
+        ),
+      ),
+    );
   }
 
   @override
@@ -129,6 +157,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 8),
                   Text(_error!, style: const TextStyle(color: MidManColors.danger, fontSize: 12)),
                 ],
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _parsing ? null : _uploadInvoice,
+                    icon: const Icon(Icons.attach_file, size: 18),
+                    label: const Text('Or upload an invoice / quote'),
+                    style: TextButton.styleFrom(foregroundColor: MidManColors.goldDark, padding: EdgeInsets.zero),
+                  ),
+                ),
               ],
             ),
           ),

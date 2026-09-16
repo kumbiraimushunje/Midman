@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,7 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from . import schemas
-from .ai_concierge import parse_request_text
+from .ai_concierge import parse_invoice_document, parse_request_text
 from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
@@ -148,6 +149,43 @@ def ai_parse_request(
     never creates a request itself."""
     beneficiaries = db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
     return parse_request_text(payload.text, beneficiaries)
+
+
+_INVOICE_MAX_BYTES = 10 * 1024 * 1024
+_INVOICE_CONTENT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".pdf": "application/pdf",
+}
+
+
+@app.post("/ai/parse-invoice", response_model=schemas.AiParseResponse)
+async def ai_parse_invoice(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Same idea as /ai/parse-request, but reads an uploaded invoice or price
+    quote (a photo, or a text-based PDF) instead of typed text - still never
+    creates or submits a request itself. The file is only held in memory for
+    parsing, not stored - if the customer wants to keep it as proof, they
+    attach it as evidence after creating the request, same as any other file."""
+    suffix = Path(file.filename or "").suffix.lower()
+    content_type = _INVOICE_CONTENT_TYPES.get(suffix)
+    if content_type is None:
+        raise HTTPException(400, f"Unsupported file type '{suffix}'. Upload a photo (jpg/png/webp/heic) or a PDF.")
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(400, "Empty file")
+    if len(contents) > _INVOICE_MAX_BYTES:
+        raise HTTPException(400, "File too large (max 10 MB)")
+
+    beneficiaries = db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
+    return parse_invoice_document(contents, file.filename or "invoice", content_type, beneficiaries)
 
 
 # ---------- Beneficiaries ----------

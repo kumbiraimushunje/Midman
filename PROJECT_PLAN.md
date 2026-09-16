@@ -134,7 +134,15 @@ updates, evidence, and fraud-risk flags visible before approving.
       id), pre-filling the request form for the customer to review and
       submit themselves - never auto-submitted. Degrades gracefully with
       no OPENAI_API_KEY.
-- [ ] Invoice / quote parsing (reading an uploaded document, not just typed text)
+- [x] Invoice / quote parsing: "Or upload an invoice / quote" on the home
+      screen (`POST /ai/parse-invoice`, `parse_invoice_document()` in
+      `app/ai_concierge.py`) reads an uploaded photo (via OpenAI vision) or
+      a text-based PDF (text extracted with pypdf, then parsed the same way
+      as typed text) into the same prefilled draft as the text prompt -
+      still never creates or submits a request itself. A scanned/image-only
+      PDF (no extractable text layer) isn't supported without adding a
+      rasterizer dependency; that case degrades to a fallback message
+      suggesting a photo instead, same as when the AI is unavailable.
 - [ ] Quote comparison summaries across suppliers
 - [ ] General chatbot/customer support beyond request creation
 

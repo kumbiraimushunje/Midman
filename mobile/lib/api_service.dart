@@ -119,6 +119,21 @@ class ApiService {
     return AiParseResult.fromJson(_decode(res));
   }
 
+  /// Same idea as [parseRequestText], but reads an uploaded invoice or price
+  /// quote (a photo, or a text-based PDF) instead of typed text. Never
+  /// creates or submits a request itself - the customer still reviews the
+  /// prefilled draft before anything is sent.
+  static Future<AiParseResult> parseInvoiceDocument({required List<int> bytes, required String filename}) async {
+    final token = await _token;
+    final request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/ai/parse-invoice'));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    return AiParseResult.fromJson(_decode(res));
+  }
+
   static Future<DashboardReport> dashboardReport() async {
     final res = await http.get(Uri.parse('$_baseUrl/reports/dashboard'), headers: await _authHeaders());
     return DashboardReport.fromJson(_decode(res));
