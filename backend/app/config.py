@@ -24,5 +24,22 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     s3_bucket_name: str = ""
 
+    # Where the customer's browser lands after completing a payment on either
+    # gateway's hosted page (a page in the deployed web app). Shared by both
+    # providers below - it plays the same role in each's API.
+    payment_return_url: str = ""
+
+    # Zimbabwe-local payments (EcoCash/OneMoney/ZimSwitch/local bank cards).
+    # Leave blank and the app works normally, just without the Paynow checkout
+    # option - customers only see the international-card option instead.
+    paynow_integration_id: str = ""
+    paynow_integration_key: str = ""
+    paynow_result_url: str = ""  # our public /payments/paynow/webhook URL - Paynow calls this server-to-server
+
+    # International card payments. Leave blank and the app works normally,
+    # just without the international-card checkout option.
+    flutterwave_secret_key: str = ""
+    flutterwave_webhook_secret_hash: str = ""  # the "secret hash" you set in the Flutterwave dashboard's webhook settings
+
 
 settings = Settings()

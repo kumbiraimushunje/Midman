@@ -143,7 +143,11 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
     setState(() => _comparing = true);
     try {
       final result = await ApiService.generateQuoteComparison(widget.requestId);
-      if (mounted) setState(() => _comparisonFuture = Future.value(result));
+      if (mounted) {
+        setState(() {
+          _comparisonFuture = Future.value(result);
+        });
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {

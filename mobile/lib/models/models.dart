@@ -113,6 +113,7 @@ class MidManUser {
   final DateTime? trialEndsAt;
   final String kycStatus;
   final String? kycRejectionReason;
+  final String? countryOfResidence;
   final DateTime? deletedAt;
 
   MidManUser({
@@ -126,6 +127,7 @@ class MidManUser {
     this.trialEndsAt,
     required this.kycStatus,
     this.kycRejectionReason,
+    this.countryOfResidence,
     this.deletedAt,
   });
 
@@ -143,6 +145,7 @@ class MidManUser {
         trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),
         kycStatus: json['kyc_status'],
         kycRejectionReason: json['kyc_rejection_reason'],
+        countryOfResidence: json['country_of_residence'],
         deletedAt: json['deleted_at'] == null ? null : DateTime.parse(json['deleted_at']),
       );
 }
@@ -216,6 +219,52 @@ class KYCReview {
         documentUrl: json['id_document_path'],
         kycStatus: json['kyc_status'],
         createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
+class Payment {
+  final String id;
+  final String provider; // "paynow" | "flutterwave"
+  final String? method;
+  final String merchantReference;
+  final String? providerReference;
+  final num amount;
+  final String currency;
+  final String status; // "pending" | "paid" | "failed" | "cancelled"
+  final String? checkoutUrl;
+  final DateTime createdAt;
+  final DateTime? paidAt;
+
+  Payment({
+    required this.id,
+    required this.provider,
+    this.method,
+    required this.merchantReference,
+    this.providerReference,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    this.checkoutUrl,
+    required this.createdAt,
+    this.paidAt,
+  });
+
+  factory Payment.fromJson(Map<String, dynamic> json) => Payment(
+        id: json['id'],
+        provider: json['provider'],
+        method: json['method'],
+        merchantReference: json['merchant_reference'],
+        providerReference: json['provider_reference'],
+        amount: switch (json['amount']) {
+          num n => n,
+          String s => num.tryParse(s) ?? 0,
+          _ => 0,
+        },
+        currency: json['currency'],
+        status: json['status'],
+        checkoutUrl: json['checkout_url'],
+        createdAt: DateTime.parse(json['created_at']),
+        paidAt: json['paid_at'] == null ? null : DateTime.parse(json['paid_at']),
       );
 }
 

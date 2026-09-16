@@ -44,6 +44,16 @@ def notify_decision(user: User, request: ServiceRequest, approved: bool, comment
     _send(user.email, subject, body)
 
 
+def notify_payment_received(user: User, request: ServiceRequest, amount, currency: str) -> None:
+    subject = f"Payment received - {request.request_number}"
+    body = (
+        f"Hi {user.full_name},\n\n"
+        f"We've received your payment of {currency} {amount} for \"{request.title}\" "
+        f"({request.request_number}). We're now moving it forward.\n\nMidMan"
+    )
+    _send(user.email, subject, body)
+
+
 def notify_kyc_decision(user: User, approved: bool, reason: str | None) -> None:
     subject = f"Your identity verification was {'approved' if approved else 'declined'}"
     body = (

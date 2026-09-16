@@ -320,6 +320,39 @@ class ApiService {
     return ServiceRequest.fromJson(_decode(res));
   }
 
+  /// Starts a payment attempt on an approved (payment_pending) request.
+  /// [provider] is 'paynow' or 'flutterwave'. [method]/[phone] are for
+  /// Paynow's EcoCash/OneMoney express checkout only - omit both for the
+  /// web-redirect flow (Paynow's own hosted page, or Flutterwave's).
+  static Future<Payment> initiatePayment({
+    required String requestId,
+    required String provider,
+    String? method,
+    String? phone,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/service-requests/$requestId/pay'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'provider': provider, 'method': method, 'phone': phone}),
+    );
+    return Payment.fromJson(_decode(res));
+  }
+
+  /// The most recent payment attempt for a request, or null if none yet.
+  static Future<Payment?> getLatestPayment(String requestId) async {
+    final res = await http.get(Uri.parse('$_baseUrl/service-requests/$requestId/payment'), headers: await _authHeaders());
+    final data = _decode(res);
+    return data == null ? null : Payment.fromJson(data);
+  }
+
+  /// Actively re-checks the latest payment's status - useful right after the
+  /// customer returns from the gateway's page, before a webhook has
+  /// necessarily arrived yet.
+  static Future<Payment> checkPayment(String requestId) async {
+    final res = await http.post(Uri.parse('$_baseUrl/service-requests/$requestId/payment/check'), headers: await _authHeaders());
+    return Payment.fromJson(_decode(res));
+  }
+
   /// [fileType] is one of 'photo' | 'video' | 'document' | 'receipt' | 'quote' (matches
   /// the backend's EvidenceType). [supplierName] only applies to fileType 'quote'. Takes
   /// raw bytes (not a dart:io File) so it works on web, mobile, and desktop alike.

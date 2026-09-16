@@ -203,8 +203,39 @@ updates, evidence, and fraud-risk flags visible before approving.
       there's no concrete requirement for them yet at this app's size.
 
 ### Phase 6 — Channels & payments
-WhatsApp channel, real payment gateway integration (replacing the
-approve-then-manual-payment flow), push notifications.
+- [x] Real payment gateway integration, replacing the approve-then-manual-
+      payment flow. A `payments` table tracks each attempt against a
+      request; once staff approve a request (status `payment_pending`), the
+      customer picks a gateway themselves on the Order Tracking screen -
+      Paynow (`app/paynow_gateway.py`, official SDK: EcoCash/OneMoney/
+      ZimSwitch/local bank cards) or Flutterwave (`app/flutterwave_gateway.py`,
+      plain REST: international cards) - with their own country only ever
+      used as a suggested default, never to force one over the other.
+      `POST /service-requests/{id}/pay` creates the payment and returns a
+      checkout link the app opens in a browser tab; `POST
+      .../payment/check` lets the customer manually re-confirm after
+      returning (mainly useful for Paynow, and essential wherever the
+      backend isn't reachable from the internet, e.g. local dev);
+      `POST /payments/paynow/webhook` and `POST /payments/flutterwave/webhook`
+      are the real server-to-server confirmations - Paynow's verified by
+      recomputing its documented SHA512 hash by hand (its SDK's own
+      webhook parser is an unimplemented stub), Flutterwave's by checking
+      the `verif-hash` header and then re-verifying the transaction with a
+      fresh call to Flutterwave's API rather than ever trusting the webhook
+      body's amount/status directly. A confirmed payment advances the
+      request to `in_progress`, logs a RequestEvent and an audit entry, and
+      emails the customer. Verified end-to-end against the real Neon DB:
+      every guard (ownership, request status, missing amount, bad webhook
+      hash/signature, unknown reference, double-processing), the "gateway
+      not configured" fallback, and a full simulated Paynow webhook
+      round-trip whose hash was checked against Paynow's own documented
+      worked example before ever touching the live endpoint. Needs real
+      Paynow/Flutterwave credentials in `.env` (see `.env.example`) before
+      going live - none were available while building this, so live
+      checkout completion itself is unverified beyond the protocol-level
+      checks above.
+- [ ] WhatsApp channel
+- [ ] Push notifications
 
 ### Phase 7 — Launch
 iOS build via CI (Codemagic or GitHub Actions macOS runner — this dev

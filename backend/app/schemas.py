@@ -5,7 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
-from .models import AccountType, KYCStatus, RequestStatus, ServiceCategory, UserRole
+from .models import AccountType, KYCStatus, PaymentProvider, PaymentStatus, RequestStatus, ServiceCategory, UserRole
 from .uploads import resolve_file_url
 
 
@@ -256,3 +256,25 @@ class SupportChatRequest(BaseModel):
 class SupportChatResponse(BaseModel):
     reply: str
     ai_available: bool = True
+
+
+class PaymentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    provider: PaymentProvider
+    method: Optional[str] = None
+    merchant_reference: str
+    provider_reference: Optional[str] = None
+    amount: Decimal
+    currency: str
+    status: PaymentStatus
+    checkout_url: Optional[str] = None
+    created_at: datetime
+    paid_at: Optional[datetime] = None
+
+
+class InitiatePaymentRequest(BaseModel):
+    provider: PaymentProvider
+    method: Optional[str] = None  # Paynow mobile only: "ecocash" | "onemoney"
+    phone: Optional[str] = None  # required when method is set

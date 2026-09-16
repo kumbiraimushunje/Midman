@@ -83,6 +83,18 @@ class EvidenceType(str, enum.Enum):
     quote = "quote"  # a supplier's price quote, gathered for quote-comparison
 
 
+class PaymentProvider(str, enum.Enum):
+    paynow = "paynow"  # Zimbabwe-local: EcoCash/OneMoney/ZimSwitch/local bank cards
+    flutterwave = "flutterwave"  # international cards
+
+
+class PaymentStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
 def new_uuid():
     return uuid.uuid4()
 
@@ -183,6 +195,9 @@ class ServiceRequest(Base):
         "RequestEvent", back_populates="request", cascade="all, delete-orphan", order_by="RequestEvent.created_at"
     )
     evidence = relationship("Evidence", back_populates="request", cascade="all, delete-orphan")
+    payments = relationship(
+        "Payment", back_populates="request", cascade="all, delete-orphan", order_by="Payment.created_at"
+    )
 
 
 class RequestEvent(Base):
@@ -217,6 +232,37 @@ class Evidence(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     request = relationship("ServiceRequest", back_populates="evidence")
+
+
+class Payment(Base):
+    """One attempt to pay for a request through a gateway. A request can have
+    several rows here if an earlier attempt failed/was abandoned and the
+    customer tried again - the request's own status only advances once one
+    of these actually reaches `paid`."""
+
+    __tablename__ = "payments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    request_id = Column(UUID(as_uuid=True), ForeignKey("service_requests.id"), nullable=False)
+
+    provider = Column(Enum(PaymentProvider), nullable=False)
+    method = Column(String, nullable=True)  # e.g. "ecocash", "onemoney", "card"
+    merchant_reference = Column(String, unique=True, nullable=False, index=True)  # our own reference, e.g. MIDPAY-000123
+    provider_reference = Column(String, nullable=True, index=True)  # the gateway's own transaction id/reference
+
+    amount = Column(Numeric(12, 2), nullable=False)
+    currency = Column(String, nullable=False)
+    status = Column(Enum(PaymentStatus), default=PaymentStatus.pending, nullable=False)
+    raw_status = Column(String, nullable=True)  # last raw provider status text, for support/debugging
+
+    checkout_url = Column(String, nullable=True)  # web-redirect flow (both providers)
+    poll_url = Column(String, nullable=True)  # Paynow only
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    paid_at = Column(DateTime, nullable=True)
+
+    request = relationship("ServiceRequest", back_populates="payments")
 
 
 class MemberIdCounter(Base):

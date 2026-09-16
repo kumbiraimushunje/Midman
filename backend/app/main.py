@@ -1,18 +1,19 @@
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
-from . import schemas
+from . import flutterwave_gateway, paynow_gateway, schemas
 from .ai_concierge import answer_support_question, compare_quotes, parse_invoice_document, parse_request_text
 from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
-from .id_generator import generate_member_id, generate_request_number
+from .id_generator import generate_member_id, generate_payment_reference, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
     AccountType,
@@ -21,13 +22,16 @@ from .models import (
     Evidence,
     EvidenceType,
     KYCStatus,
+    Payment,
+    PaymentProvider,
+    PaymentStatus,
     RequestEvent,
     RequestStatus,
     ServiceRequest,
     User,
     UserRole,
 )
-from .notifications import notify_decision, notify_kyc_decision, notify_status_change
+from .notifications import notify_decision, notify_kyc_decision, notify_payment_received, notify_status_change
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
@@ -514,6 +518,210 @@ def update_status(
         notify_status_change, req.requester, req, CUSTOMER_STAGE_MAP[payload.status]
     )
     return req
+
+
+# ---------- Payments ----------
+
+def _mark_paid(db: Session, payment: Payment, background_tasks: BackgroundTasks) -> None:
+    """Advances a request past payment_pending once its payment is confirmed -
+    called from both the customer-triggered status check (Paynow) and the two
+    provider webhooks. Safe to call more than once for the same payment."""
+    if payment.status == PaymentStatus.paid:
+        return
+    payment.status = PaymentStatus.paid
+    payment.paid_at = datetime.utcnow()
+
+    req = payment.request
+    if req.status == RequestStatus.payment_pending:
+        req.status = RequestStatus.in_progress
+        db.add(RequestEvent(request_id=req.id, status=req.status, note=f"Payment received via {payment.provider.value}"))
+
+    record_audit(
+        db, req.requester, "payment.received", "service_request",
+        f"{req.requester.full_name} paid {payment.currency} {payment.amount} for {req.request_number} via {payment.provider.value}",
+        entity_id=req.id,
+        meta={"provider": payment.provider.value, "amount": str(payment.amount), "currency": payment.currency},
+    )
+    db.commit()
+    background_tasks.add_task(notify_payment_received, req.requester, req, payment.amount, payment.currency)
+    background_tasks.add_task(notify_status_change, req.requester, req, CUSTOMER_STAGE_MAP[RequestStatus.in_progress])
+
+
+@app.post("/service-requests/{request_id}/pay", response_model=schemas.PaymentOut, status_code=201)
+def initiate_payment(
+    request_id,
+    payload: schemas.InitiatePaymentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Starts a payment attempt for an approved (payment_pending) request. The
+    customer picks the gateway themselves - Paynow for mobile money/local
+    cards, Flutterwave for international cards - their country is only ever
+    used client-side as a suggested default, never to force one or the other."""
+    req = _get_request_or_404(request_id, db)
+    if req.requester_id != current_user.id:
+        raise HTTPException(403, "Not your request")
+    if req.status != RequestStatus.payment_pending:
+        raise HTTPException(400, "This request isn't awaiting payment")
+    if req.amount is None or req.amount <= 0:
+        raise HTTPException(400, "This request doesn't have an amount yet - contact staff")
+
+    reference = generate_payment_reference(db)
+    payment = Payment(
+        request_id=req.id,
+        provider=payload.provider,
+        method=payload.method,
+        merchant_reference=reference,
+        amount=req.amount,
+        currency=req.currency,
+    )
+
+    amount = float(req.amount)
+    if payload.provider == PaymentProvider.paynow:
+        if payload.method:
+            if not payload.phone:
+                raise HTTPException(400, "A phone number is required for mobile money payments")
+            result = paynow_gateway.create_mobile_checkout(
+                reference, current_user.email, req.title, amount, payload.phone, payload.method
+            )
+            payment.poll_url = result.get("poll_url")
+        else:
+            result = paynow_gateway.create_checkout(reference, current_user.email, req.title, amount)
+            payment.checkout_url = result.get("redirect_url")
+            payment.poll_url = result.get("poll_url")
+    else:
+        result = flutterwave_gateway.create_checkout(
+            reference, current_user.email, current_user.full_name, amount, req.currency, req.title
+        )
+        payment.checkout_url = result.get("checkout_url")
+
+    if not result.get("success"):
+        payment.status = PaymentStatus.failed
+        payment.raw_status = result.get("error")
+        db.add(payment)
+        db.commit()
+        raise HTTPException(502, result.get("error") or "The payment gateway rejected this request")
+
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@app.get("/service-requests/{request_id}/payment", response_model=schemas.PaymentOut | None)
+def latest_payment(
+    request_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = _get_request_or_404(request_id, db)
+    is_owner = req.requester_id == current_user.id
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    if not (is_owner or is_staff):
+        raise HTTPException(403, "Not your request")
+    return (
+        db.query(Payment)
+        .filter(Payment.request_id == req.id)
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+
+@app.post("/service-requests/{request_id}/payment/check", response_model=schemas.PaymentOut)
+def check_payment(
+    request_id,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lets the client actively re-check the latest payment's status - useful
+    right after the customer returns from the gateway's page, before any
+    webhook has necessarily arrived. Paynow only: Flutterwave has no
+    customer-facing poll url, so confirmation there relies on its webhook
+    (which itself re-verifies with Flutterwave before trusting anything)."""
+    req = _get_request_or_404(request_id, db)
+    if req.requester_id != current_user.id:
+        raise HTTPException(403, "Not your request")
+    payment = (
+        db.query(Payment)
+        .filter(Payment.request_id == req.id)
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+    if payment is None:
+        raise HTTPException(404, "No payment attempt found")
+    if payment.status != PaymentStatus.paid and payment.provider == PaymentProvider.paynow and payment.poll_url:
+        result = paynow_gateway.check_status(payment.poll_url)
+        if result.get("paid"):
+            _mark_paid(db, payment, background_tasks)
+        elif result.get("success"):
+            payment.raw_status = result.get("status")
+            db.commit()
+    db.refresh(payment)
+    return payment
+
+
+@app.post("/payments/paynow/webhook")
+async def paynow_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Server-to-server callback from Paynow - not authenticated with our
+    JWT scheme, since Paynow itself is calling this, not a signed-in user.
+    Trust is instead established by validating the request's hash."""
+    form = await request.form()
+    fields = list(form.multi_items())
+    if not paynow_gateway.verify_result_hash(fields):
+        raise HTTPException(400, "Invalid hash")
+
+    data = dict(fields)
+    payment = db.query(Payment).filter(Payment.merchant_reference == data.get("reference")).first()
+    if payment is None:
+        raise HTTPException(404, "Unknown payment reference")
+
+    payment.provider_reference = data.get("paynowreference")
+    payment.raw_status = data.get("status")
+    if (data.get("status") or "").lower() in ("paid", "awaiting delivery"):
+        _mark_paid(db, payment, background_tasks)
+    else:
+        db.commit()
+    return {"received": True}
+
+
+@app.post("/payments/flutterwave/webhook")
+async def flutterwave_webhook(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Server-to-server callback from Flutterwave. The webhook body itself is
+    never trusted for the actual status/amount - only used to learn which
+    transaction to look up, then re-verified with a fresh call to
+    Flutterwave's own API (their documented recommendation) before anything
+    is marked paid."""
+    if not flutterwave_gateway.verify_webhook_signature(request.headers.get("verif-hash")):
+        raise HTTPException(400, "Invalid signature")
+
+    body = await request.json()
+    data = body.get("data") or {}
+    transaction_id = data.get("id")
+    tx_ref = data.get("tx_ref")
+    if transaction_id is None or tx_ref is None:
+        raise HTTPException(400, "Malformed webhook payload")
+
+    payment = db.query(Payment).filter(Payment.merchant_reference == tx_ref).first()
+    if payment is None:
+        raise HTTPException(404, "Unknown payment reference")
+
+    verified = flutterwave_gateway.verify_transaction(str(transaction_id))
+    payment.provider_reference = str(transaction_id)
+    payment.raw_status = verified.get("status")
+
+    amount_ok = verified.get("amount") is not None and Decimal(str(verified["amount"])) >= payment.amount
+    if (
+        verified.get("success")
+        and verified.get("status") == "successful"
+        and verified.get("tx_ref") == payment.merchant_reference
+        and amount_ok
+        and verified.get("currency") == payment.currency
+    ):
+        _mark_paid(db, payment, background_tasks)
+    else:
+        db.commit()
+    return {"received": True}
 
 
 # ---------- Reports ----------

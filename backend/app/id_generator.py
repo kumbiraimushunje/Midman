@@ -58,6 +58,29 @@ def generate_member_id(db: Session, full_name: str) -> str:
     return f"{prefix}{seq:06d}"
 
 
+def generate_payment_reference(db: Session) -> str:
+    """MIDPAY-000123 - a single global sequence shared by every payment attempt.
+    This is what's sent to the gateway as the merchant-side transaction reference."""
+    counter = (
+        db.query(MemberIdCounter)
+        .filter(MemberIdCounter.prefix == "PAY")
+        .with_for_update()
+        .first()
+    )
+    if counter is None:
+        counter = MemberIdCounter(prefix="PAY", next_seq=1)
+        db.add(counter)
+        db.flush()
+        seq = 1
+    else:
+        seq = counter.next_seq
+
+    counter.next_seq = seq + 1
+    db.flush()
+
+    return f"MIDPAY-{seq:06d}"
+
+
 def generate_request_number(db: Session) -> str:
     """MID-000123 - a single global sequence shared by every request, regardless of category."""
     counter = (

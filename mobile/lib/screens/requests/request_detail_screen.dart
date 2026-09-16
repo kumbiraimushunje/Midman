@@ -25,6 +25,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
   Future<ServiceRequest?> _load() => ApiService.getRequest(widget.requestId);
 
+  void _reload() => setState(() {
+        _future = _load();
+      });
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,6 +56,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 if (req.fraudRiskLevel != null) ...[
                   const SizedBox(height: 12),
                   Chip(label: Text('Risk: ${req.fraudRiskLevel}')),
+                ],
+                if (req.status == 'payment_pending') ...[
+                  const SizedBox(height: 20),
+                  _PaymentSection(request: req, onPaid: _reload),
                 ],
                 const SizedBox(height: 24),
                 const Text('Timeline', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -156,6 +164,183 @@ class _EvidenceTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PaymentSection extends StatefulWidget {
+  final ServiceRequest request;
+  final VoidCallback onPaid;
+  const _PaymentSection({required this.request, required this.onPaid});
+
+  @override
+  State<_PaymentSection> createState() => _PaymentSectionState();
+}
+
+class _PaymentSectionState extends State<_PaymentSection> {
+  Future<Payment?>? _latestFuture;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _latestFuture = ApiService.getLatestPayment(widget.request.id);
+  }
+
+  bool get _isZimbabwe => (widget.request.requester.countryOfResidence ?? '').toLowerCase() == 'zimbabwe';
+
+  Future<void> _pay(String provider) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final payment = await ApiService.initiatePayment(requestId: widget.request.id, provider: provider);
+      if (payment.checkoutUrl != null) {
+        await launchUrl(Uri.parse(payment.checkoutUrl!), mode: LaunchMode.externalApplication);
+      }
+      if (mounted) {
+        setState(() {
+          _latestFuture = Future.value(payment);
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _checkStatus() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final payment = await ApiService.checkPayment(widget.request.id);
+      if (mounted) {
+        setState(() {
+          _latestFuture = Future.value(payment);
+        });
+      }
+      if (payment.status == 'paid') widget.onPaid();
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Payment?>(
+      future: _latestFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        final latest = snapshot.data;
+        final awaitingConfirmation = latest != null && latest.status == 'pending';
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(color: MidManColors.ink, borderRadius: BorderRadius.circular(18)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Payment required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.request.currency} ${widget.request.amount}',
+                style: const TextStyle(color: MidManColors.gold, fontWeight: FontWeight.w700, fontSize: 22),
+              ),
+              const SizedBox(height: 16),
+              if (awaitingConfirmation) ...[
+                const Text(
+                  "If you've completed payment in the browser tab that opened, tap below to confirm.",
+                  style: TextStyle(color: Colors.white70, fontSize: 12.5),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : _checkStatus,
+                    icon: _busy
+                        ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.refresh),
+                    label: const Text("I've paid - check now"),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => setState(() {
+                              _latestFuture = Future.value(null);
+                            }),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white70, padding: EdgeInsets.zero),
+                    child: const Text('Try a different payment method'),
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PayButton(
+                        label: 'Mobile Money /\nLocal Card',
+                        highlighted: _isZimbabwe,
+                        busy: _busy,
+                        onPressed: () => _pay('paynow'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _PayButton(
+                        label: 'International\nCard',
+                        highlighted: !_isZimbabwe,
+                        busy: _busy,
+                        onPressed: () => _pay('flutterwave'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!, style: const TextStyle(color: MidManColors.danger, fontSize: 12)),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PayButton extends StatelessWidget {
+  final String label;
+  final bool highlighted;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  const _PayButton({required this.label, required this.highlighted, required this.busy, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    if (highlighted) {
+      return ElevatedButton(
+        onPressed: busy ? null : onPressed,
+        child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.3)),
+      );
+    }
+    return OutlinedButton(
+      onPressed: busy ? null : onPressed,
+      style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white38)),
+      child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.3)),
     );
   }
 }
