@@ -204,3 +204,11 @@ class KYCReviewOut(BaseModel):
 class KYCDecisionRequest(BaseModel):
     approve: bool
     reason: Optional[str] = None
+
+
+class AdminUserOut(UserOut):
+    deleted_at: Optional[datetime] = None
+
+
+class RoleChangeRequest(BaseModel):
+    role: UserRole

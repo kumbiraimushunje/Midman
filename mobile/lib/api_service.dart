@@ -152,6 +152,43 @@ class ApiService {
     _decode(res);
   }
 
+  /// Admin only - the full user directory, optionally filtered by [role] or a
+  /// name/email/member-id [search] substring. Deactivated accounts are
+  /// excluded unless [includeInactive] is set.
+  static Future<List<MidManUser>> listAdminUsers({
+    String? role,
+    String? search,
+    bool includeInactive = false,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/admin/users').replace(queryParameters: {
+      if (role != null) 'role': role,
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (includeInactive) 'include_inactive': 'true',
+    });
+    final res = await http.get(uri, headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => MidManUser.fromJson(e)).toList();
+  }
+
+  static Future<MidManUser> changeUserRole({required String userId, required String role}) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/admin/users/$userId/role'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'role': role}),
+    );
+    return MidManUser.fromJson(_decode(res));
+  }
+
+  static Future<MidManUser> deactivateUser(String userId) async {
+    final res = await http.post(Uri.parse('$_baseUrl/admin/users/$userId/deactivate'), headers: await _authHeaders());
+    return MidManUser.fromJson(_decode(res));
+  }
+
+  static Future<MidManUser> reactivateUser(String userId) async {
+    final res = await http.post(Uri.parse('$_baseUrl/admin/users/$userId/reactivate'), headers: await _authHeaders());
+    return MidManUser.fromJson(_decode(res));
+  }
+
   static Future<List<Beneficiary>> listBeneficiaries() async {
     final res = await http.get(Uri.parse('$_baseUrl/beneficiaries'), headers: await _authHeaders());
     final data = _decode(res) as List;

@@ -101,6 +101,7 @@ class MidManUser {
   final DateTime? trialEndsAt;
   final String kycStatus;
   final String? kycRejectionReason;
+  final DateTime? deletedAt;
 
   MidManUser({
     required this.id,
@@ -113,9 +114,11 @@ class MidManUser {
     this.trialEndsAt,
     required this.kycStatus,
     this.kycRejectionReason,
+    this.deletedAt,
   });
 
   bool get isOnTrial => trialEndsAt != null && DateTime.now().isBefore(trialEndsAt!);
+  bool get isActive => deletedAt == null;
 
   factory MidManUser.fromJson(Map<String, dynamic> json) => MidManUser(
         id: json['id'],
@@ -128,6 +131,7 @@ class MidManUser {
         trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),
         kycStatus: json['kyc_status'],
         kycRejectionReason: json['kyc_rejection_reason'],
+        deletedAt: json['deleted_at'] == null ? null : DateTime.parse(json['deleted_at']),
       );
 }
 

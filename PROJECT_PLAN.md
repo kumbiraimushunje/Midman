@@ -152,6 +152,18 @@ updates, evidence, and fraud-risk flags visible before approving.
       staff shell) and approve or decline with a reason
       (`POST /kyc/{user_id}/decision`), which emails the customer and,
       on decline, surfaces the reason back on their Account screen
+- [x] Admin System split from the Staff Dashboard: `staff`/`approver` keep
+      the day-to-day work-queue shell (Queue/Approvals/KYC/Reports/Account);
+      `admin` now gets a distinct `AdminHomeShell` with everything staff has
+      plus a Users tab (`GET /admin/users`, filterable by role/search,
+      inactive accounts included on demand) for changing a user's role
+      (`POST /admin/users/{id}/role`) and deactivating/reactivating accounts
+      (`POST /admin/users/{id}/deactivate` `/reactivate`, reusing the
+      existing soft-delete column so a deactivated user is instantly locked
+      out of login). Admins can't change their own role or deactivate
+      themselves, to avoid a self-lockout. Departments, system settings, and
+      workflow configuration from the original admin spec aren't built -
+      there's no concrete requirement for them yet at this app's size.
 
 ### Phase 6 — Channels & payments
 WhatsApp channel, real payment gateway integration (replacing the

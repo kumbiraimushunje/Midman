@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import case
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from . import schemas
@@ -403,4 +403,88 @@ def decide_kyc(
     db.commit()
     db.refresh(target)
     background_tasks.add_task(notify_kyc_decision, target, payload.approve, payload.reason)
+    return target
+
+
+# ---------- Admin: user management ----------
+
+def _require_admin(current_user: User) -> None:
+    if current_user.role != UserRole.admin:
+        raise HTTPException(403, "Admin only")
+
+
+@app.get("/admin/users", response_model=list[schemas.AdminUserOut])
+def list_users(
+    role: UserRole | None = None,
+    search: str | None = None,
+    include_inactive: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_admin(current_user)
+    query = db.query(User)
+    if not include_inactive:
+        query = query.filter(User.deleted_at.is_(None))
+    if role is not None:
+        query = query.filter(User.role == role)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(User.full_name.ilike(like), User.email.ilike(like), User.member_id.ilike(like))
+        )
+    return query.order_by(User.created_at.desc()).limit(500).all()
+
+
+@app.post("/admin/users/{user_id}/role", response_model=schemas.AdminUserOut)
+def change_user_role(
+    user_id,
+    payload: schemas.RoleChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_admin(current_user)
+    if str(user_id) == str(current_user.id):
+        raise HTTPException(400, "Cannot change your own role")
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(404, "User not found")
+    target.role = payload.role
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@app.post("/admin/users/{user_id}/deactivate", response_model=schemas.AdminUserOut)
+def deactivate_user(
+    user_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Soft-deletes the account (same mechanism as self-deletion) - deactivated
+    users are excluded from login and from every deleted_at.is_(None) query."""
+    _require_admin(current_user)
+    if str(user_id) == str(current_user.id):
+        raise HTTPException(400, "Cannot deactivate your own account")
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(404, "User not found")
+    target.deleted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+@app.post("/admin/users/{user_id}/reactivate", response_model=schemas.AdminUserOut)
+def reactivate_user(
+    user_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_admin(current_user)
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(404, "User not found")
+    target.deleted_at = None
+    db.commit()
+    db.refresh(target)
     return target

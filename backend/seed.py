@@ -1,6 +1,7 @@
 """Creates a couple of demo accounts for local testing:
   customer@midman.app   / password123   (role=customer)
   staff@midman.app      / password123   (role=staff, can approve + update status)
+  admin@midman.app      / password123   (role=admin, full Admin System access)
 
 Run `alembic upgrade head` first to create the schema, then: python seed.py
 """
@@ -38,6 +39,19 @@ try:
                 password_hash=hash_password("password123"),
                 country_of_residence="Zimbabwe",
                 role=UserRole.staff,
+            )
+        )
+    if not db.query(User).filter(User.email == "admin@midman.app").first():
+        db.add(
+            User(
+                member_id=generate_member_id(db, "Demo Admin"),
+                full_name="Demo Admin",
+                date_of_birth=date(1990, 1, 1),
+                email="admin@midman.app",
+                phone="+10000000003",
+                password_hash=hash_password("password123"),
+                country_of_residence="Zimbabwe",
+                role=UserRole.admin,
             )
         )
     db.commit()
