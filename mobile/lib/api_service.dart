@@ -134,6 +134,20 @@ class ApiService {
     return AiParseResult.fromJson(_decode(res));
   }
 
+  /// General help/FAQ chatbot - stateless server-side, so the client resends
+  /// recent [history] (role/content pairs, oldest first) with every message.
+  static Future<SupportChatReply> supportChat({
+    required String message,
+    required List<Map<String, String>> history,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/ai/support-chat'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'message': message, 'history': history}),
+    );
+    return SupportChatReply.fromJson(_decode(res));
+  }
+
   static Future<DashboardReport> dashboardReport() async {
     final res = await http.get(Uri.parse('$_baseUrl/reports/dashboard'), headers: await _authHeaders());
     return DashboardReport.fromJson(_decode(res));

@@ -6,6 +6,7 @@ import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
 import '../login_screen.dart';
+import '../support/support_chat_screen.dart';
 import 'subscription_screen.dart';
 
 class AccountScreen extends StatefulWidget {
@@ -137,6 +138,14 @@ class _AccountScreenState extends State<AccountScreen> {
               _AccountTile(icon: Icons.email_outlined, label: 'Email', value: user.email),
               _AccountTile(icon: Icons.phone_outlined, label: 'Phone', value: user.phone),
               const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SupportChatScreen()),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Help & Support'),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: _logout,
                 icon: const Icon(Icons.logout),

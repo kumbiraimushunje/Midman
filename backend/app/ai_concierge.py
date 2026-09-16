@@ -320,3 +320,78 @@ def compare_quotes(quotes: list[dict]) -> dict:
     except Exception:
         logger.exception("AI quote comparison failed")
         return _comparison_fallback(supplier_names, "AI assistance hit an error comparing these quotes - review them manually.")
+
+
+_SUPPORT_SYSTEM_PROMPT = (
+    "You are MidMan's in-app help assistant. MidMan is a concierge platform: customers "
+    "submit service requests (school fees, medical, groceries, documents, property, "
+    "procurement, gifts, transport, personal concierge, or other) and MidMan staff carry "
+    "them out. You are a help/FAQ chatbot only - you cannot create, cancel, approve, or "
+    "change anything yourself, and you never move money.\n\n"
+    "How the platform works, for answering questions:\n"
+    "- Every request moves through 4 customer-visible stages: Received, Arranging, In "
+    "Progress, Completed. Staff sometimes need to confirm an approval before payment.\n"
+    "- Every customer must verify their identity (KYC): upload an id/passport from the "
+    "Account tab; staff review and approve or decline it, with a reason if declined.\n"
+    "- Membership tiers: PAYG (pay per use, no saved beneficiaries or history), Standard "
+    "(saved beneficiaries, full request history, faster processing, recurring payments), "
+    "Pro (everything in Standard, plus priority queue and free digital assistance). "
+    "Pricing hasn't been set yet - every account is currently free during testing/launch.\n"
+    "- To start a new request, the customer types or speaks what they need on the Home "
+    "tab, or uploads an invoice/quote there, or taps a service category directly.\n\n"
+    "Rules:\n"
+    "- Only state account/request details that are actually given to you below - never "
+    "invent an order, amount, date, or status that isn't in that context.\n"
+    "- If asked to actually do something (cancel a request, change subscription, refund a "
+    "charge, edit an order), explain you can't take actions, and say where in the app they "
+    "can do it themselves (or that staff will handle it).\n"
+    "- If you don't know the answer from the context and platform info above, say so "
+    "plainly rather than guessing, and suggest checking the Requests tab or waiting for a "
+    "staff reply.\n"
+    "- Keep replies short and conversational - a few sentences, not an essay.\n\n"
+    "Respond with strict JSON: {\"reply\": \"...\"}"
+)
+
+_MAX_CHAT_HISTORY = 10
+_MAX_MESSAGE_CHARS = 2000
+
+
+def _chat_fallback(reply: str) -> dict:
+    return {"reply": reply, "ai_available": False}
+
+
+def answer_support_question(message: str, history: list[dict], context: dict) -> dict:
+    """A read-only help/FAQ chatbot: answers questions about how MidMan works and the
+    customer's own recent requests (given via `context`), but can never create, change,
+    or cancel anything - same "AI never acts directly" rule as the rest of the concierge."""
+    message = (message or "").strip()[:_MAX_MESSAGE_CHARS]
+    if not message:
+        return _chat_fallback("Ask me anything about your requests or how MidMan works!")
+
+    if not settings.openai_api_key:
+        return _chat_fallback("Chat support isn't available right now - check the Requests tab for status, or a staff member will follow up by email.")
+
+    try:
+        client = OpenAI(api_key=settings.openai_api_key)
+        messages = [{"role": "system", "content": _SUPPORT_SYSTEM_PROMPT}]
+        messages.append({"role": "system", "content": f"Account context (only source of truth for account specifics): {json.dumps(context)}"})
+        for h in history[-_MAX_CHAT_HISTORY:]:
+            role = h.get("role")
+            if role in ("user", "assistant") and h.get("content"):
+                messages.append({"role": role, "content": str(h["content"])[:_MAX_MESSAGE_CHARS]})
+        messages.append({"role": "user", "content": message})
+
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=messages,
+            response_format={"type": "json_object"},
+            timeout=20,
+        )
+        result = json.loads(response.choices[0].message.content)
+        reply = (result.get("reply") or "").strip()
+        if not reply:
+            return _chat_fallback("Sorry, I didn't catch that - could you rephrase?")
+        return {"reply": reply, "ai_available": True}
+    except Exception:
+        logger.exception("AI support chat failed")
+        return _chat_fallback("Something went wrong answering that - please try again, or check the Requests tab in the meantime.")

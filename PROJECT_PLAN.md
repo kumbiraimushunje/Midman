@@ -156,7 +156,17 @@ updates, evidence, and fraud-risk flags visible before approving.
       hallucination guard as invoice parsing: a supplier's amount/notes are
       only ever what the model could actually read from that supplier's
       own quote, never inferred or borrowed from another one.
-- [ ] General chatbot/customer support beyond request creation
+- [x] General chatbot/customer support: "Help & Support" on the Account
+      screen opens a chat (`POST /ai/support-chat`,
+      `answer_support_question()` in `app/ai_concierge.py`) that answers
+      platform FAQs (membership tiers, KYC, the 4-stage request timeline)
+      and questions about the customer's own recent requests, using only
+      the account context it's actually given - never invents order/amount
+      details. It's read-only: if asked to cancel/change/approve something,
+      it explains it can't act and points to where in the app to do it, or
+      that staff will handle it. Stateless server-side (the client resends
+      recent turns each message, nothing is persisted), and open to every
+      signed-in role, not just customers.
 
 ### Phase 5 — Reporting & compliance (dashboard done)
 - [x] Staff dashboard (`GET /reports/dashboard`, Reports tab in the staff

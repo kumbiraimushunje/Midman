@@ -241,3 +241,18 @@ class QuoteComparisonOut(BaseModel):
     recommendation: Optional[str] = None
     suppliers: list[SupplierQuoteSummary]
     ai_available: bool = True
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
+class SupportChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
+
+
+class SupportChatResponse(BaseModel):
+    reply: str
+    ai_available: bool = True

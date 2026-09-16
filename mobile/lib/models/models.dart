@@ -90,6 +90,18 @@ class AiParseResult {
       );
 }
 
+class SupportChatReply {
+  final String reply;
+  final bool aiAvailable;
+
+  SupportChatReply({required this.reply, required this.aiAvailable});
+
+  factory SupportChatReply.fromJson(Map<String, dynamic> json) => SupportChatReply(
+        reply: json['reply'] ?? '',
+        aiAvailable: json['ai_available'] ?? true,
+      );
+}
+
 class MidManUser {
   final String id;
   final String memberId;

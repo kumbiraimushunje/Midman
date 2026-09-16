@@ -8,7 +8,7 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from . import schemas
-from .ai_concierge import compare_quotes, parse_invoice_document, parse_request_text
+from .ai_concierge import answer_support_question, compare_quotes, parse_invoice_document, parse_request_text
 from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
@@ -186,6 +186,43 @@ async def ai_parse_invoice(
 
     beneficiaries = db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
     return parse_invoice_document(contents, file.filename or "invoice", content_type, beneficiaries)
+
+
+@app.post("/ai/support-chat", response_model=schemas.SupportChatResponse)
+def ai_support_chat(
+    payload: schemas.SupportChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """General help/FAQ chatbot - answers questions about the platform and the
+    customer's own recent requests. Read-only: it never creates, changes, or
+    cancels anything itself, and the conversation isn't persisted server-side -
+    the client resends recent history with each message."""
+    recent = (
+        db.query(ServiceRequest)
+        .filter(ServiceRequest.requester_id == current_user.id)
+        .order_by(ServiceRequest.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    context = {
+        "full_name": current_user.full_name,
+        "member_id": current_user.member_id,
+        "role": current_user.role.value,
+        "account_type": current_user.account_type.value,
+        "kyc_status": current_user.kyc_status.value,
+        "recent_requests": [
+            {
+                "request_number": r.request_number,
+                "title": r.title,
+                "status": r.status.value,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in recent
+        ],
+    }
+    history = [h.model_dump() for h in payload.history]
+    return answer_support_question(payload.message, history, context)
 
 
 # ---------- Beneficiaries ----------
