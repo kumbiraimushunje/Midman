@@ -126,14 +126,28 @@ updates, evidence, and fraud-risk flags visible before approving.
 - [ ] Pro's "free digital assistance" as an actual price waiver (depends on
       pricing existing first)
 
-### Phase 4 — AI concierge
-Natural-language request creation ("Pay my daughter's school fees"), invoice
-/ quote parsing, quote comparison summaries, chatbot support. AI never
-initiates money movement directly — it only prepares structured requests for
-human approval.
+### Phase 4 — AI concierge (natural-language request creation done)
+- [x] Natural-language request creation: the home screen's prompt box calls
+      `POST /ai/parse-request` (`app/ai_concierge.py`), which extracts
+      category/title/description/amount and matches named people against
+      the customer's real saved beneficiaries (never trusts a hallucinated
+      id), pre-filling the request form for the customer to review and
+      submit themselves - never auto-submitted. Degrades gracefully with
+      no OPENAI_API_KEY.
+- [ ] Invoice / quote parsing (reading an uploaded document, not just typed text)
+- [ ] Quote comparison summaries across suppliers
+- [ ] General chatbot/customer support beyond request creation
 
-### Phase 5 — Reporting & compliance
-Dashboards, audit log views, KYC document review workflow.
+### Phase 5 — Reporting & compliance (dashboard done)
+- [x] Staff dashboard (`GET /reports/dashboard`, Reports tab in the staff
+      shell): requests by status/category, customers by tier, requested vs
+      completed amounts, new customers (30d), high-risk flags, pending
+      approvals.
+- [ ] A general-purpose audit log view (who changed what, when, across
+      every table) - RequestEvent already covers request status-change
+      history specifically, but nothing broader exists yet
+- [ ] KYC document review workflow (KYCStatus exists on User, but nothing
+      lets staff actually review an uploaded id/passport and approve it)
 
 ### Phase 6 — Channels & payments
 WhatsApp channel, real payment gateway integration (replacing the
