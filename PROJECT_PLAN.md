@@ -146,8 +146,12 @@ updates, evidence, and fraud-risk flags visible before approving.
 - [ ] A general-purpose audit log view (who changed what, when, across
       every table) - RequestEvent already covers request status-change
       history specifically, but nothing broader exists yet
-- [ ] KYC document review workflow (KYCStatus exists on User, but nothing
-      lets staff actually review an uploaded id/passport and approve it)
+- [x] KYC document review workflow: customers upload/re-upload their
+      id/passport from Account (`POST /me/kyc-document`, resets status to
+      pending); staff review a queue (`GET /kyc/pending`, KYC tab in the
+      staff shell) and approve or decline with a reason
+      (`POST /kyc/{user_id}/decision`), which emails the customer and,
+      on decline, surfaces the reason back on their Account screen
 
 ### Phase 6 — Channels & payments
 WhatsApp channel, real payment gateway integration (replacing the

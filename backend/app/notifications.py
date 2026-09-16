@@ -44,6 +44,22 @@ def notify_decision(user: User, request: ServiceRequest, approved: bool, comment
     _send(user.email, subject, body)
 
 
+def notify_kyc_decision(user: User, approved: bool, reason: str | None) -> None:
+    subject = f"Your identity verification was {'approved' if approved else 'declined'}"
+    body = (
+        f"Hi {user.full_name},\n\n"
+        + (
+            "Your identity document has been verified - you're all set.\n\n"
+            if approved
+            else "We weren't able to verify your identity document."
+            + (f"\n\nReason: {reason}" if reason else "")
+            + "\n\nPlease upload a clearer copy in the MidMan app and we'll take another look.\n\n"
+        )
+        + "MidMan"
+    )
+    _send(user.email, subject, body)
+
+
 def _send(to_email: str, subject: str, body: str) -> None:
     if not settings.smtp_host:
         logger.info("[email skipped - no SMTP configured] To: %s | %s\n%s", to_email, subject, body)

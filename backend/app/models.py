@@ -103,6 +103,8 @@ class User(Base):
     primary_purpose = Column(String, nullable=True)  # children/parents/family/property/business/personal/other
     id_document_path = Column(String, nullable=True)
     kyc_status = Column(Enum(KYCStatus), default=KYCStatus.pending, nullable=False)
+    kyc_rejection_reason = Column(String, nullable=True)
+    kyc_reviewed_at = Column(DateTime, nullable=True)
 
     role = Column(Enum(UserRole), default=UserRole.customer, nullable=False)
     account_type = Column(Enum(AccountType), default=AccountType.payg, nullable=False)

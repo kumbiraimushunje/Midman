@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -16,11 +17,40 @@ class AccountScreen extends StatefulWidget {
 
 class _AccountScreenState extends State<AccountScreen> {
   late Future<MidManUser> _future;
+  bool _uploadingKyc = false;
 
   @override
   void initState() {
     super.initState();
     _future = ApiService.me();
+  }
+
+  void _reload() => setState(() {
+        _future = ApiService.me();
+      });
+
+  Future<void> _uploadKycDocument() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'],
+    );
+    if (result.isEmpty) return;
+    final file = result.first;
+
+    setState(() => _uploadingKyc = true);
+    try {
+      await ApiService.uploadKycDocument(bytes: await file.readAsBytes(), filename: file.name);
+      _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document submitted - we\'ll review it shortly.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _uploadingKyc = false);
+    }
   }
 
   Future<void> _logout() async {
@@ -33,11 +63,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType)),
     );
-    if (changed == true) {
-      setState(() {
-        _future = ApiService.me();
-      });
-    }
+    if (changed == true) _reload();
   }
 
   String _formatDate(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
@@ -106,7 +132,8 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              _AccountTile(icon: Icons.badge_outlined, label: 'KYC status', value: user.kycStatus),
+              _KycSection(user: user, uploading: _uploadingKyc, onUpload: _uploadKycDocument),
+              const SizedBox(height: 24),
               _AccountTile(icon: Icons.email_outlined, label: 'Email', value: user.email),
               _AccountTile(icon: Icons.phone_outlined, label: 'Phone', value: user.phone),
               const SizedBox(height: 24),
@@ -118,6 +145,66 @@ class _AccountScreenState extends State<AccountScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _KycSection extends StatelessWidget {
+  final MidManUser user;
+  final bool uploading;
+  final VoidCallback onUpload;
+
+  const _KycSection({required this.user, required this.uploading, required this.onUpload});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color, title, subtitle) = switch (user.kycStatus) {
+      'verified' => (Icons.verified_outlined, MidManColors.success, 'Identity verified', 'Your document has been checked and approved.'),
+      'rejected' => (
+          Icons.error_outline,
+          MidManColors.danger,
+          'Verification declined',
+          user.kycRejectionReason ?? 'Please upload a clearer copy of your id or passport.',
+        ),
+      _ => (Icons.hourglass_top_outlined, MidManColors.warning, 'Verification pending', 'Upload your id or passport to verify your identity.'),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (user.kycStatus != 'verified') ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: uploading ? null : onUpload,
+                icon: uploading
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.upload_file_outlined),
+                label: Text(user.kycStatus == 'rejected' ? 'Upload a new document' : 'Upload id / passport'),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

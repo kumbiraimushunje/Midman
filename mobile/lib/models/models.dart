@@ -100,6 +100,7 @@ class MidManUser {
   final String accountType;
   final DateTime? trialEndsAt;
   final String kycStatus;
+  final String? kycRejectionReason;
 
   MidManUser({
     required this.id,
@@ -111,6 +112,7 @@ class MidManUser {
     required this.accountType,
     this.trialEndsAt,
     required this.kycStatus,
+    this.kycRejectionReason,
   });
 
   bool get isOnTrial => trialEndsAt != null && DateTime.now().isBefore(trialEndsAt!);
@@ -125,6 +127,43 @@ class MidManUser {
         accountType: json['account_type'],
         trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),
         kycStatus: json['kyc_status'],
+        kycRejectionReason: json['kyc_rejection_reason'],
+      );
+}
+
+class KYCReview {
+  final String id;
+  final String memberId;
+  final String fullName;
+  final String email;
+  final String phone;
+  final String countryOfResidence;
+  final String documentUrl;
+  final String kycStatus;
+  final DateTime createdAt;
+
+  KYCReview({
+    required this.id,
+    required this.memberId,
+    required this.fullName,
+    required this.email,
+    required this.phone,
+    required this.countryOfResidence,
+    required this.documentUrl,
+    required this.kycStatus,
+    required this.createdAt,
+  });
+
+  factory KYCReview.fromJson(Map<String, dynamic> json) => KYCReview(
+        id: json['id'],
+        memberId: json['member_id'],
+        fullName: json['full_name'],
+        email: json['email'],
+        phone: json['phone'],
+        countryOfResidence: json['country_of_residence'],
+        documentUrl: json['id_document_path'],
+        kycStatus: json['kyc_status'],
+        createdAt: DateTime.parse(json['created_at']),
       );
 }
 

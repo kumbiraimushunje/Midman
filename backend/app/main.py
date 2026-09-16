@@ -17,13 +17,14 @@ from .models import (
     Beneficiary,
     Evidence,
     EvidenceType,
+    KYCStatus,
     RequestEvent,
     RequestStatus,
     ServiceRequest,
     User,
     UserRole,
 )
-from .notifications import notify_decision, notify_status_change
+from .notifications import notify_decision, notify_kyc_decision, notify_status_change
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
@@ -96,6 +97,24 @@ def change_subscription(
     """Self-service tier switch. No payment gateway wired up yet - pricing
     for each tier hasn't been set, so this just records the choice."""
     current_user.account_type = payload.account_type
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.post("/me/kyc-document", response_model=schemas.UserOut)
+async def upload_kyc_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Customer uploads (or re-uploads, after a rejection) their id/passport.
+    Always resets status to pending - staff review it from there."""
+    file_url = await save_upload(file)
+    current_user.id_document_path = file_url
+    current_user.kyc_status = KYCStatus.pending
+    current_user.kyc_rejection_reason = None
+    current_user.kyc_reviewed_at = None
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -347,3 +366,41 @@ def dashboard_report(current_user: User = Depends(get_current_user), db: Session
     if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
         raise HTTPException(403, "Staff only")
     return build_dashboard_report(db)
+
+
+# ---------- KYC review ----------
+
+@app.get("/kyc/pending", response_model=list[schemas.KYCReviewOut])
+def pending_kyc_reviews(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The staff review queue - customers who've submitted an id/passport and are awaiting a decision."""
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    return (
+        db.query(User)
+        .filter(User.kyc_status == KYCStatus.pending, User.id_document_path.isnot(None), User.deleted_at.is_(None))
+        .order_by(User.created_at.asc())
+        .all()
+    )
+
+
+@app.post("/kyc/{user_id}/decision", response_model=schemas.KYCReviewOut)
+def decide_kyc(
+    user_id,
+    payload: schemas.KYCDecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        raise HTTPException(404, "User not found")
+
+    target.kyc_status = KYCStatus.verified if payload.approve else KYCStatus.rejected
+    target.kyc_rejection_reason = None if payload.approve else payload.reason
+    target.kyc_reviewed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(target)
+    background_tasks.add_task(notify_kyc_decision, target, payload.approve, payload.reason)
+    return target

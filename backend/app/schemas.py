@@ -42,6 +42,7 @@ class UserOut(BaseModel):
     account_type: AccountType
     trial_ends_at: Optional[datetime] = None
     kyc_status: KYCStatus
+    kyc_rejection_reason: Optional[str] = None
     country_of_residence: str
     created_at: datetime
 
@@ -175,3 +176,31 @@ class DashboardReport(BaseModel):
     total_amount_completed: Decimal
     high_risk_requests: int
     pending_approval_count: int
+
+
+class KYCReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    member_id: str
+    full_name: str
+    email: EmailStr
+    phone: str
+    country_of_residence: str
+    id_document_path: str
+    kyc_status: KYCStatus
+    kyc_rejection_reason: Optional[str] = None
+    created_at: datetime
+
+    @field_validator("id_document_path", mode="before")
+    @classmethod
+    def _resolve_url(cls, stored_value: Optional[str]) -> str:
+        """Despite the name (matching the ORM column), this is resolved into
+        a fetchable URL - a local path passes through, an S3 key becomes a
+        presigned link - before it ever reaches the client."""
+        return resolve_file_url(stored_value) if stored_value else ""
+
+
+class KYCDecisionRequest(BaseModel):
+    approve: bool
+    reason: Optional[str] = None

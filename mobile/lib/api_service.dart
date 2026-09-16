@@ -124,6 +124,34 @@ class ApiService {
     return DashboardReport.fromJson(_decode(res));
   }
 
+  /// Uploads (or re-uploads, after a rejection) the customer's id/passport.
+  /// Always resets kyc_status to pending server-side.
+  static Future<MidManUser> uploadKycDocument({required List<int> bytes, required String filename}) async {
+    final token = await _token;
+    final request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/me/kyc-document'));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    return MidManUser.fromJson(_decode(res));
+  }
+
+  static Future<List<KYCReview>> pendingKycReviews() async {
+    final res = await http.get(Uri.parse('$_baseUrl/kyc/pending'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => KYCReview.fromJson(e)).toList();
+  }
+
+  static Future<void> decideKyc({required String userId, required bool approve, String? reason}) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/kyc/$userId/decision'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'approve': approve, 'reason': reason}),
+    );
+    _decode(res);
+  }
+
   static Future<List<Beneficiary>> listBeneficiaries() async {
     final res = await http.get(Uri.parse('$_baseUrl/beneficiaries'), headers: await _authHeaders());
     final data = _decode(res) as List;
