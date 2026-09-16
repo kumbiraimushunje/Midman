@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import 'audit_log_screen.dart';
 
 const _roleOptions = [
   ('customer', 'Customer'),
@@ -44,7 +45,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         includeInactive: _includeInactive,
       );
 
-  void _reload() => setState(() => _future = _load());
+  void _reload() => setState(() {
+        _future = _load();
+      });
 
   Future<void> _manage(MidManUser user) async {
     await showModalBottomSheet(
@@ -94,11 +97,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return SafeArea(
       child: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 8, 8),
             child: Row(
               children: [
-                Expanded(child: Text('Users', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+                const Expanded(child: Text('Users', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+                IconButton(
+                  icon: const Icon(Icons.history),
+                  tooltip: 'Audit log',
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuditLogScreen())),
+                ),
               ],
             ),
           ),

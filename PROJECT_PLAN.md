@@ -143,9 +143,16 @@ updates, evidence, and fraud-risk flags visible before approving.
       shell): requests by status/category, customers by tier, requested vs
       completed amounts, new customers (30d), high-risk flags, pending
       approvals.
-- [ ] A general-purpose audit log view (who changed what, when, across
-      every table) - RequestEvent already covers request status-change
-      history specifically, but nothing broader exists yet
+- [x] A general-purpose audit log (`audit_logs` table, `app/audit.py`'s
+      `record_audit` helper, `GET /admin/audit-log` filterable by
+      entity_type/action, Audit Log screen opened from the Users tab's
+      history icon) - the counterpart to RequestEvent, which only covers a
+      single request's status timeline. Actor name/role are denormalized
+      onto each row so entries stay readable even if the actor is later
+      renamed or deactivated. Instrumented so far: registration,
+      self-deletion, subscription changes, KYC decisions, admin role
+      changes and activate/deactivate, and request approve/reject/status
+      changes.
 - [x] KYC document review workflow: customers upload/re-upload their
       id/passport from Account (`POST /me/kyc-document`, resets status to
       pending); staff review a queue (`GET /kyc/pending`, KYC tab in the

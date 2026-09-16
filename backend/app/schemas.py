@@ -212,3 +212,17 @@ class AdminUserOut(UserOut):
 
 class RoleChangeRequest(BaseModel):
     role: UserRole
+
+
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    actor_name: str
+    actor_role: str
+    action: str
+    entity_type: str
+    entity_id: Optional[uuid.UUID] = None
+    summary: str
+    meta: Optional[dict] = None
+    created_at: datetime

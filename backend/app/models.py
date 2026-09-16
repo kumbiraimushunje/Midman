@@ -219,3 +219,27 @@ class MemberIdCounter(Base):
 
     prefix = Column(String(3), primary_key=True)
     next_seq = Column(Integer, nullable=False, default=1)
+
+
+class AuditLog(Base):
+    """Append-only record of who changed what, when, across the whole system -
+    the general-purpose counterpart to RequestEvent, which only covers a
+    single service request's status timeline. Actor details are denormalized
+    (stored as plain strings, not a live join) so a row stays accurate and
+    readable even if the actor is later renamed or deactivated."""
+
+    __tablename__ = "audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    actor_name = Column(String, nullable=False)
+    actor_role = Column(String, nullable=False)
+
+    action = Column(String, nullable=False)  # e.g. "user.role_change", "kyc.decision", "request.approve"
+    entity_type = Column(String, nullable=False)  # e.g. "user", "service_request"
+    entity_id = Column(UUID(as_uuid=True), nullable=True)
+    summary = Column(String, nullable=False)  # human-readable one-liner shown in the log
+    meta = Column(JSONB, nullable=True)  # structured before/after detail, when useful
+
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

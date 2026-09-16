@@ -135,6 +135,42 @@ class MidManUser {
       );
 }
 
+class AuditLogEntry {
+  final String id;
+  final String actorName;
+  final String actorRole;
+  final String action;
+  final String entityType;
+  final String? entityId;
+  final String summary;
+  final Map<String, dynamic>? meta;
+  final DateTime createdAt;
+
+  AuditLogEntry({
+    required this.id,
+    required this.actorName,
+    required this.actorRole,
+    required this.action,
+    required this.entityType,
+    this.entityId,
+    required this.summary,
+    this.meta,
+    required this.createdAt,
+  });
+
+  factory AuditLogEntry.fromJson(Map<String, dynamic> json) => AuditLogEntry(
+        id: json['id'],
+        actorName: json['actor_name'],
+        actorRole: json['actor_role'],
+        action: json['action'],
+        entityType: json['entity_type'],
+        entityId: json['entity_id'],
+        summary: json['summary'],
+        meta: json['meta'] == null ? null : Map<String, dynamic>.from(json['meta']),
+        createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
 class KYCReview {
   final String id;
   final String memberId;

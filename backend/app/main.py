@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 
 from . import schemas
 from .ai_concierge import parse_request_text
+from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
 from .id_generator import generate_member_id, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
     AccountType,
+    AuditLog,
     Beneficiary,
     Evidence,
     EvidenceType,
@@ -64,6 +66,8 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
         trial_ends_at=trial_ends_at_for_new_user(),
     )
     db.add(user)
+    db.flush()  # assigns user.id before the audit row references it
+    record_audit(db, user, "user.register", "user", f"{user.full_name} registered", entity_id=user.id)
     db.commit()
     db.refresh(user)
     return user
@@ -85,6 +89,7 @@ def read_me(current_user: User = Depends(get_current_user)):
 @app.delete("/me", status_code=204)
 def delete_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     current_user.deleted_at = datetime.utcnow()
+    record_audit(db, current_user, "user.self_delete", "user", f"{current_user.full_name} deleted their own account", entity_id=current_user.id)
     db.commit()
 
 
@@ -96,7 +101,17 @@ def change_subscription(
 ):
     """Self-service tier switch. No payment gateway wired up yet - pricing
     for each tier hasn't been set, so this just records the choice."""
+    old_tier = current_user.account_type.value
     current_user.account_type = payload.account_type
+    record_audit(
+        db,
+        current_user,
+        "user.subscription_change",
+        "user",
+        f"{current_user.full_name} switched from {old_tier} to {payload.account_type.value}",
+        entity_id=current_user.id,
+        meta={"from": old_tier, "to": payload.account_type.value},
+    )
     db.commit()
     db.refresh(current_user)
     return current_user
@@ -309,6 +324,10 @@ def approve_request(
     req.decision_comment = payload.comment
     req.decided_at = datetime.utcnow()
     db.add(RequestEvent(request_id=req.id, status=req.status, note=payload.comment, created_by_id=current_user.id))
+    record_audit(
+        db, current_user, "request.approve", "service_request",
+        f"{current_user.full_name} approved {req.request_number}", entity_id=req.id,
+    )
     db.commit()
     db.refresh(req)
     background_tasks.add_task(notify_decision, req.requester, req, True, payload.comment)
@@ -331,6 +350,10 @@ def reject_request(
     req.decision_comment = payload.comment
     req.decided_at = datetime.utcnow()
     db.add(RequestEvent(request_id=req.id, status=req.status, note=payload.comment, created_by_id=current_user.id))
+    record_audit(
+        db, current_user, "request.reject", "service_request",
+        f"{current_user.full_name} rejected {req.request_number}", entity_id=req.id,
+    )
     db.commit()
     db.refresh(req)
     background_tasks.add_task(notify_decision, req.requester, req, False, payload.comment)
@@ -351,6 +374,10 @@ def update_status(
     req = _get_request_or_404(request_id, db)
     req.status = payload.status
     db.add(RequestEvent(request_id=req.id, status=payload.status, note=payload.note, created_by_id=current_user.id))
+    record_audit(
+        db, current_user, "request.status_change", "service_request",
+        f"{current_user.full_name} moved {req.request_number} to {payload.status.value}", entity_id=req.id,
+    )
     db.commit()
     db.refresh(req)
     background_tasks.add_task(
@@ -400,6 +427,12 @@ def decide_kyc(
     target.kyc_status = KYCStatus.verified if payload.approve else KYCStatus.rejected
     target.kyc_rejection_reason = None if payload.approve else payload.reason
     target.kyc_reviewed_at = datetime.utcnow()
+    record_audit(
+        db, current_user, "kyc.decision", "user",
+        f"{current_user.full_name} {'approved' if payload.approve else 'declined'} {target.full_name}'s KYC document",
+        entity_id=target.id,
+        meta={"approved": payload.approve, "reason": payload.reason},
+    )
     db.commit()
     db.refresh(target)
     background_tasks.add_task(notify_kyc_decision, target, payload.approve, payload.reason)
@@ -448,7 +481,14 @@ def change_user_role(
     target = db.query(User).filter(User.id == user_id).first()
     if target is None:
         raise HTTPException(404, "User not found")
+    old_role = target.role.value
     target.role = payload.role
+    record_audit(
+        db, current_user, "user.role_change", "user",
+        f"{current_user.full_name} changed {target.full_name}'s role from {old_role} to {payload.role.value}",
+        entity_id=target.id,
+        meta={"from": old_role, "to": payload.role.value},
+    )
     db.commit()
     db.refresh(target)
     return target
@@ -469,6 +509,10 @@ def deactivate_user(
     if target is None:
         raise HTTPException(404, "User not found")
     target.deleted_at = datetime.utcnow()
+    record_audit(
+        db, current_user, "user.deactivate", "user",
+        f"{current_user.full_name} deactivated {target.full_name}'s account", entity_id=target.id,
+    )
     db.commit()
     db.refresh(target)
     return target
@@ -485,6 +529,33 @@ def reactivate_user(
     if target is None:
         raise HTTPException(404, "User not found")
     target.deleted_at = None
+    record_audit(
+        db, current_user, "user.reactivate", "user",
+        f"{current_user.full_name} reactivated {target.full_name}'s account", entity_id=target.id,
+    )
     db.commit()
     db.refresh(target)
     return target
+
+
+# ---------- Admin: audit log ----------
+
+@app.get("/admin/audit-log", response_model=list[schemas.AuditLogOut])
+def list_audit_log(
+    entity_type: str | None = None,
+    action: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Read-only, chronological trail of consequential changes across the
+    system (registrations, role/status/subscription changes, KYC and
+    approval decisions) - the general-purpose counterpart to a single
+    request's status timeline (RequestEvent)."""
+    _require_admin(current_user)
+    query = db.query(AuditLog)
+    if entity_type is not None:
+        query = query.filter(AuditLog.entity_type == entity_type)
+    if action is not None:
+        query = query.filter(AuditLog.action == action)
+    return query.order_by(AuditLog.created_at.desc()).limit(limit).all()

@@ -189,6 +189,20 @@ class ApiService {
     return MidManUser.fromJson(_decode(res));
   }
 
+  /// Admin only - the system-wide "who changed what, when" trail (registrations,
+  /// role/subscription changes, KYC and approval decisions, ...), optionally
+  /// filtered by [entityType] (e.g. 'user', 'service_request') or [action].
+  static Future<List<AuditLogEntry>> listAuditLog({String? entityType, String? action, int limit = 100}) async {
+    final uri = Uri.parse('$_baseUrl/admin/audit-log').replace(queryParameters: {
+      if (entityType != null) 'entity_type': entityType,
+      if (action != null) 'action': action,
+      'limit': '$limit',
+    });
+    final res = await http.get(uri, headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => AuditLogEntry.fromJson(e)).toList();
+  }
+
   static Future<List<Beneficiary>> listBeneficiaries() async {
     final res = await http.get(Uri.parse('$_baseUrl/beneficiaries'), headers: await _authHeaders());
     final data = _decode(res) as List;
