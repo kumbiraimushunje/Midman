@@ -16,6 +16,22 @@ class _HomeScreenState extends State<HomeScreen> {
   final _promptController = TextEditingController();
   bool _parsing = false;
   String? _error;
+  String? _firstName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    try {
+      final user = await ApiService.me();
+      if (mounted) setState(() => _firstName = user.fullName.trim().split(' ').first);
+    } catch (_) {
+      // Non-fatal - the greeting just falls back to a generic one.
+    }
+  }
 
   @override
   void dispose() {
@@ -63,8 +79,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const CircleAvatar(radius: 22, backgroundColor: MidManColors.navy, child: Icon(Icons.person, color: Colors.white)),
               const SizedBox(width: 12),
-              const Expanded(
-                child: Text('Good to see you', style: TextStyle(fontSize: 16, color: Colors.grey)),
+              Expanded(
+                child: Text(
+                  _firstName == null ? 'Good to see you' : 'Good to see you, $_firstName',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
               ),
             ],
           ),
@@ -81,9 +100,9 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const CircleAvatar(radius: 22, backgroundColor: MidManColors.gold, child: Icon(Icons.auto_awesome, color: Colors.black)),
                 const SizedBox(height: 14),
-                const Text('Tell me what you\nwant me to do...', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
+                const Text('How can I help you 😊', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
                 const SizedBox(height: 8),
-                const Text('Type or speak', style: TextStyle(color: Colors.grey)),
+                const Text('Type or speak to me', style: TextStyle(color: Colors.grey)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
