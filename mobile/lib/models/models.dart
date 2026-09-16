@@ -1,3 +1,57 @@
+class DashboardReport {
+  final int totalRequests;
+  final int totalCustomers;
+  final int newCustomersLast30Days;
+  final Map<String, int> requestsByStatus;
+  final Map<String, int> requestsByCategory;
+  final Map<String, int> customersByTier;
+  final num totalAmountRequested;
+  final num totalAmountCompleted;
+  final int highRiskRequests;
+  final int pendingApprovalCount;
+
+  DashboardReport({
+    required this.totalRequests,
+    required this.totalCustomers,
+    required this.newCustomersLast30Days,
+    required this.requestsByStatus,
+    required this.requestsByCategory,
+    required this.customersByTier,
+    required this.totalAmountRequested,
+    required this.totalAmountCompleted,
+    required this.highRiskRequests,
+    required this.pendingApprovalCount,
+  });
+
+  static num _toNum(dynamic v) => switch (v) {
+        null => 0,
+        num n => n,
+        String s => num.tryParse(s) ?? 0,
+        _ => 0,
+      };
+
+  static Map<String, int> _countMap(List? items, String key) {
+    final map = <String, int>{};
+    for (final item in (items ?? [])) {
+      map[item[key] as String] = item['count'] as int;
+    }
+    return map;
+  }
+
+  factory DashboardReport.fromJson(Map<String, dynamic> json) => DashboardReport(
+        totalRequests: json['total_requests'],
+        totalCustomers: json['total_customers'],
+        newCustomersLast30Days: json['new_customers_last_30_days'],
+        requestsByStatus: _countMap(json['requests_by_status'] as List?, 'status'),
+        requestsByCategory: _countMap(json['requests_by_category'] as List?, 'category'),
+        customersByTier: _countMap(json['customers_by_tier'] as List?, 'account_type'),
+        totalAmountRequested: _toNum(json['total_amount_requested']),
+        totalAmountCompleted: _toNum(json['total_amount_completed']),
+        highRiskRequests: json['high_risk_requests'],
+        pendingApprovalCount: json['pending_approval_count'],
+      );
+}
+
 class AiParseResult {
   final String category;
   final String title;

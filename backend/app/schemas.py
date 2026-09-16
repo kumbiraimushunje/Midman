@@ -147,3 +147,31 @@ class AiParseResponse(BaseModel):
     amount: Optional[Decimal] = None
     missing_info: list[str] = []
     ai_available: bool = True
+
+
+class StatusCount(BaseModel):
+    status: str
+    count: int
+
+
+class CategoryCount(BaseModel):
+    category: str
+    count: int
+
+
+class TierCount(BaseModel):
+    account_type: str
+    count: int
+
+
+class DashboardReport(BaseModel):
+    total_requests: int
+    total_customers: int
+    new_customers_last_30_days: int
+    requests_by_status: list[StatusCount]
+    requests_by_category: list[CategoryCount]
+    customers_by_tier: list[TierCount]
+    total_amount_requested: Decimal
+    total_amount_completed: Decimal
+    high_risk_requests: int
+    pending_approval_count: int

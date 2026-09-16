@@ -24,6 +24,7 @@ from .models import (
     UserRole,
 )
 from .notifications import notify_decision, notify_status_change
+from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
 from .uploads import UPLOAD_DIR, save_upload
@@ -337,3 +338,12 @@ def update_status(
         notify_status_change, req.requester, req, CUSTOMER_STAGE_MAP[payload.status]
     )
     return req
+
+
+# ---------- Reports ----------
+
+@app.get("/reports/dashboard", response_model=schemas.DashboardReport)
+def dashboard_report(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    return build_dashboard_report(db)

@@ -119,6 +119,11 @@ class ApiService {
     return AiParseResult.fromJson(_decode(res));
   }
 
+  static Future<DashboardReport> dashboardReport() async {
+    final res = await http.get(Uri.parse('$_baseUrl/reports/dashboard'), headers: await _authHeaders());
+    return DashboardReport.fromJson(_decode(res));
+  }
+
   static Future<List<Beneficiary>> listBeneficiaries() async {
     final res = await http.get(Uri.parse('$_baseUrl/beneficiaries'), headers: await _authHeaders());
     final data = _decode(res) as List;
