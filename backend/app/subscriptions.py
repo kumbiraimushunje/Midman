@@ -15,6 +15,12 @@ trial every new account starts on.
 Every new account gets a 30-day free trial. The trial is about billing,
 not features: during it a user is simply on PAYG (no subscription has
 been chosen or charged yet) until they pick Standard or Pro.
+
+LAUNCH-MONTH OVERRIDE: every account is free during testing and the first
+month of launch, so PAYG's two restrictions (no beneficiaries, no request
+history) don't make sense yet - nobody has actually paid less for being on
+PAYG, so nobody should be penalized for it. Flip LAUNCH_MONTH_ALL_FEATURES_UNLOCKED
+to False once real paid tiers exist to bring the PAYG restrictions back.
 """
 
 from datetime import datetime, timedelta
@@ -22,6 +28,8 @@ from datetime import datetime, timedelta
 from .models import AccountType, RequestStatus, User
 
 TRIAL_DAYS = 30
+
+LAUNCH_MONTH_ALL_FEATURES_UNLOCKED = True
 
 # PAYG: "no list of previous transactions" - once a request reaches one of
 # these terminal statuses it drops out of the customer's own list. Staff
@@ -41,11 +49,15 @@ def trial_ends_at_for_new_user() -> datetime:
 
 def can_manage_beneficiaries(user: User) -> bool:
     """PAYG: "cannot create beneficiaries list instead enter details all the time"."""
+    if LAUNCH_MONTH_ALL_FEATURES_UNLOCKED:
+        return True
     return user.account_type != AccountType.payg
 
 
 def visible_statuses_for(user: User) -> set[RequestStatus] | None:
     """None means no filtering (see every request). PAYG only sees requests still in flight."""
+    if LAUNCH_MONTH_ALL_FEATURES_UNLOCKED:
+        return None
     if user.account_type == AccountType.payg:
         return set(RequestStatus) - _PAYG_HIDDEN_STATUSES
     return None

@@ -40,6 +40,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: const Color(0xFFF1EEE7), borderRadius: BorderRadius.circular(14)),
+              child: const Text(
+                "🎉 During testing and our first month of launch, every plan includes all features free of charge - "
+                'including saving beneficiaries and your full request history. The differences below take effect after that.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
             const Text(
               'Pricing for each plan is coming soon - for now, pick the plan that fits how you want to use MidMan.',
               style: TextStyle(color: Colors.grey),
