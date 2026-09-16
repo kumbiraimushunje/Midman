@@ -69,7 +69,11 @@ and seeded with demo accounts.
 ### Phase 1 — MVP core (done)
 - [x] Data model: User, Beneficiary, ServiceRequest, RequestEvent, Evidence
 - [x] Member ID + Request Number generation
-- [x] Register / login (JWT), soft-delete account endpoint
+- [x] Register / login (JWT), soft-delete account endpoint (`DELETE /me`,
+      optional `reason` captured for staff/audit visibility - not shown to
+      other customers). Wired up in the app as a "Delete account"
+      confirmation dialog on the Account screen, with an optional "why are
+      you leaving?" field.
 - [x] Beneficiaries CRUD
 - [x] Create service request, list "my requests", approve/reject, staff
       status updates, timeline events
@@ -79,6 +83,11 @@ and seeded with demo accounts.
 - [x] Flutter: themed splash, login, register (KYC-lite), home shell with
       bottom nav (Home/Requests/Family/Account), requests list, new-request
       form, request detail timeline, beneficiaries screen, account screen
+- [x] Help & Support contact card on Account (support email/phone, tappable
+      to mailto:/tel:, plus the AI "Chat with us" support chat) - contact
+      details are placeholders (`support@midman.app`, a placeholder Zimbabwe
+      number) marked `// TODO` in `account_screen.dart` to swap for the
+      real ones before launch
 - [x] Evidence & document uploads: requester attaches an invoice/photo when
       creating a request, staff attach completion proof; local-disk storage
       behind `/service-requests/{id}/evidence`, shown in the app as photo

@@ -30,6 +30,10 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class DeleteAccountRequest(BaseModel):
+    reason: Optional[str] = None
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

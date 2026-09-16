@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
@@ -8,6 +9,10 @@ import '../../theme.dart';
 import '../login_screen.dart';
 import '../support/support_chat_screen.dart';
 import 'subscription_screen.dart';
+
+// TODO: placeholders - replace with MidMan's real support contact details before launch.
+const _supportEmail = 'support@midman.app';
+const _supportPhone = '+263 71 234 5678';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -19,6 +24,7 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   late Future<MidManUser> _future;
   bool _uploadingKyc = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -58,6 +64,54 @@ class _AccountScreenState extends State<AccountScreen> {
     await ApiService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "This is permanent and can't be undone. You'll lose access to your requests, "
+              'beneficiaries, and history.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(labelText: "Why are you leaving? (optional)"),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: MidManColors.danger),
+            child: const Text('Delete my account'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _deleting = true);
+    try {
+      final reason = reasonController.text.trim();
+      await ApiService.deleteAccount(reason: reason.isEmpty ? null : reason);
+      await ApiService.logout();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
   }
 
   Future<void> _manageMembership(MidManUser user) async {
@@ -138,18 +192,23 @@ class _AccountScreenState extends State<AccountScreen> {
               _AccountTile(icon: Icons.email_outlined, label: 'Email', value: user.email),
               _AccountTile(icon: Icons.phone_outlined, label: 'Phone', value: user.phone),
               const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SupportChatScreen()),
-                ),
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Help & Support'),
-              ),
-              const SizedBox(height: 12),
+              const _SupportSection(),
+              const SizedBox(height: 24),
               OutlinedButton.icon(
                 onPressed: _logout,
                 icon: const Icon(Icons.logout),
                 label: const Text('Sign out'),
+              ),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _deleting ? null : _confirmDeleteAccount,
+                icon: _deleting
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.delete_outline, color: MidManColors.danger),
+                label: const Text('Delete account', style: TextStyle(color: MidManColors.danger)),
+                style: OutlinedButton.styleFrom(side: BorderSide(color: MidManColors.danger.withValues(alpha: 0.4))),
               ),
             ],
           );
@@ -215,6 +274,70 @@ class _KycSection extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SupportSection extends StatelessWidget {
+  const _SupportSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.support_agent_outlined, color: MidManColors.gold),
+              SizedBox(width: 12),
+              Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text('Need a hand? Reach out any time.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 14),
+          InkWell(
+            onTap: () => launchUrl(Uri(scheme: 'mailto', path: _supportEmail)),
+            child: const _ContactRow(icon: Icons.email_outlined, value: _supportEmail),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => launchUrl(Uri(scheme: 'tel', path: _supportPhone.replaceAll(' ', ''))),
+            child: const _ContactRow(icon: Icons.phone_outlined, value: _supportPhone),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SupportChatScreen()),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Chat with us'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  const _ContactRow({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey),
+        const SizedBox(width: 12),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+      ],
     );
   }
 }

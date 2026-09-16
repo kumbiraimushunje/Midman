@@ -97,6 +97,17 @@ class ApiService {
     return MidManUser.fromJson(_decode(res));
   }
 
+  /// Permanently (soft-)deletes the signed-in customer's own account.
+  /// [reason] is optional feedback shown only to staff, never required.
+  static Future<void> deleteAccount({String? reason}) async {
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/me'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'reason': reason}),
+    );
+    _decode(res);
+  }
+
   /// [accountType] is one of 'payg' | 'standard' | 'pro'.
   static Future<MidManUser> changeSubscription(String accountType) async {
     final res = await http.post(

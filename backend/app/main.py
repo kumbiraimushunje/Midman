@@ -92,9 +92,18 @@ def read_me(current_user: User = Depends(get_current_user)):
 
 
 @app.delete("/me", status_code=204)
-def delete_me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_me(
+    payload: schemas.DeleteAccountRequest = schemas.DeleteAccountRequest(),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     current_user.deleted_at = datetime.utcnow()
-    record_audit(db, current_user, "user.self_delete", "user", f"{current_user.full_name} deleted their own account", entity_id=current_user.id)
+    current_user.deletion_reason = payload.reason
+    record_audit(
+        db, current_user, "user.self_delete", "user",
+        f"{current_user.full_name} deleted their own account", entity_id=current_user.id,
+        meta={"reason": payload.reason} if payload.reason else None,
+    )
     db.commit()
 
 

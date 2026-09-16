@@ -125,6 +125,7 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)  # soft delete - account deletion is a launch requirement
+    deletion_reason = Column(String, nullable=True)  # optional feedback captured when the customer deletes their own account
 
     beneficiaries = relationship("Beneficiary", back_populates="owner", cascade="all, delete-orphan")
     requests_made = relationship(
