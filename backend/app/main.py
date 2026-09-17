@@ -287,6 +287,7 @@ def create_service_request(
         requester_id=current_user.id,
         beneficiary_id=payload.beneficiary_id,
         category=payload.category,
+        service_type=payload.service_type,
         title=payload.title,
         description=payload.description,
         amount=payload.amount,

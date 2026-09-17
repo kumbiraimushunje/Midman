@@ -49,6 +49,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 Text(req.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(req.requestNumber, style: const TextStyle(color: Colors.grey)),
+                if (req.serviceType != null) ...[
+                  const SizedBox(height: 4),
+                  Text(req.serviceType!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
                 if (req.amount != null) ...[
                   const SizedBox(height: 8),
                   Text('${req.currency} ${req.amount}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),

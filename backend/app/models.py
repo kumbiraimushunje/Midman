@@ -29,18 +29,37 @@ class KYCStatus(str, enum.Enum):
 
 
 class ServiceCategory(str, enum.Enum):
+    # Retired - kept only so historical rows created before the 3-level
+    # taxonomy (see service_taxonomy.py) stay valid. Never offered for new
+    # requests; superseded by healthcare/education/document_collection/
+    # document_delivery/tenant_coordination/property_cleaning below.
     school_fees = "school_fees"
     medical = "medical"
     prescriptions = "prescriptions"
-    groceries = "groceries"
     family_essentials = "family_essentials"
     documents = "documents"
-    government_errands = "government_errands"
     property_management = "property_management"
+    cleaning = "cleaning"
+
+    # Active - see service_taxonomy.py for the full Group -> Category ->
+    # Service Type tree these belong to.
+    groceries = "groceries"
+    healthcare = "healthcare"
+    education = "education"
+    document_collection = "document_collection"
+    document_delivery = "document_delivery"
+    government_errands = "government_errands"
     property_inspection = "property_inspection"
     maintenance = "maintenance"
-    cleaning = "cleaning"
+    tenant_coordination = "tenant_coordination"
+    property_cleaning = "property_cleaning"
+    building_materials = "building_materials"
+    household_procurement = "household_procurement"
     procurement = "procurement"
+    birthday_gifts = "birthday_gifts"
+    anniversary_valentines_gifts = "anniversary_valentines_gifts"
+    graduation_gifts = "graduation_gifts"
+    corporate_gifts = "corporate_gifts"
     gifts = "gifts"
     transportation = "transportation"
     personal_concierge = "personal_concierge"
@@ -167,6 +186,7 @@ class ServiceRequest(Base):
     assigned_staff_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     category = Column(Enum(ServiceCategory), nullable=False)
+    service_type = Column(String, nullable=True)  # the specific Level-3 pick within `category` - see service_taxonomy.py
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 

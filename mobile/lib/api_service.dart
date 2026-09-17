@@ -307,6 +307,7 @@ class ApiService {
 
   static Future<ServiceRequest> createServiceRequest({
     required String category,
+    String? serviceType,
     required String title,
     String? description,
     String? beneficiaryId,
@@ -317,6 +318,7 @@ class ApiService {
       headers: await _authHeaders(),
       body: jsonEncode({
         'category': category,
+        'service_type': serviceType,
         'title': title,
         'description': description,
         'beneficiary_id': beneficiaryId,

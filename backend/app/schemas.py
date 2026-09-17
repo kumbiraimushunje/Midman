@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
 from .models import AccountType, KYCStatus, PaymentProvider, PaymentStatus, RequestStatus, ServiceCategory, UserRole
+from .service_taxonomy import SERVICE_TYPES_BY_CATEGORY
 from .uploads import resolve_file_url
 
 
@@ -75,11 +76,23 @@ class BeneficiaryOut(BaseModel):
 
 class ServiceRequestCreate(BaseModel):
     category: ServiceCategory
+    service_type: Optional[str] = None
     title: str
     description: Optional[str] = None
     beneficiary_id: Optional[uuid.UUID] = None
     amount: Optional[Decimal] = None
     currency: str = "USD"
+
+    @field_validator("service_type")
+    @classmethod
+    def _validate_service_type(cls, v: Optional[str], info) -> Optional[str]:
+        if not v:
+            return v
+        category = info.data.get("category")
+        allowed = SERVICE_TYPES_BY_CATEGORY.get(category.value) if category else None
+        if allowed and v not in allowed:
+            raise ValueError(f"'{v}' isn't a valid service type for category '{category.value}'")
+        return v
 
 
 class RequestEventOut(BaseModel):
@@ -115,6 +128,7 @@ class ServiceRequestOut(BaseModel):
     id: uuid.UUID
     request_number: str
     category: ServiceCategory
+    service_type: Optional[str] = None
     title: str
     description: Optional[str] = None
     amount: Optional[Decimal] = None

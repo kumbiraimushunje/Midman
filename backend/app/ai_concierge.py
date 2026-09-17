@@ -15,11 +15,12 @@ from openai import OpenAI
 from pypdf import PdfReader
 
 from .config import settings
-from .models import Beneficiary, ServiceCategory
+from .models import Beneficiary
+from .service_taxonomy import ACTIVE_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
-_VALID_CATEGORIES = [c.value for c in ServiceCategory]
+_VALID_CATEGORIES = ACTIVE_CATEGORIES
 
 _SYSTEM_PROMPT = (
     "You are the intake assistant for MidMan, a concierge platform. A customer "

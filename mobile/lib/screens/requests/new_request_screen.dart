@@ -39,13 +39,18 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
+  final _extraFieldControllers = <String, TextEditingController>{};
   String? _category;
+  String? _serviceType;
   String? _beneficiaryId;
   List<Beneficiary> _beneficiaries = [];
   bool _loading = false;
   bool _loadingBeneficiaries = true;
   String? _error;
   PlatformFile? _attachedFile;
+
+  ServiceCategoryOption? get _categoryOption => _category == null ? null : findServiceCategory(_category!);
+  ServiceGroup? get _group => _category == null ? null : findGroupForCategory(_category!);
 
   @override
   void initState() {
@@ -61,7 +66,39 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     if (widget.prefillAmount != null) {
       _amountController.text = widget.prefillAmount.toString();
     }
+    _syncExtraFieldControllers();
     _loadBeneficiaries();
+  }
+
+  void _syncExtraFieldControllers() {
+    final fields = _categoryOption?.extraFields ?? const [];
+    for (final name in fields) {
+      _extraFieldControllers.putIfAbsent(name, () => TextEditingController());
+    }
+    _extraFieldControllers.removeWhere((name, controller) {
+      final stale = !fields.contains(name);
+      if (stale) controller.dispose();
+      return stale;
+    });
+  }
+
+  void _onCategoryChanged(String? value) {
+    setState(() {
+      _category = value;
+      _serviceType = null;
+      _syncExtraFieldControllers();
+    });
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _amountController.dispose();
+    for (final c in _extraFieldControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadBeneficiaries() async {
@@ -85,6 +122,20 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
   }
 
+  /// The extra structured fields (e.g. Airport Transfers' Flight number,
+  /// Passenger, ...) don't have their own backend columns - they're folded
+  /// into the description as clearly labeled lines so staff still see them.
+  String? _composedDescription() {
+    final base = _descriptionController.text.trim();
+    final extras = _extraFieldControllers.entries
+        .map((e) => MapEntry(e.key, e.value.text.trim()))
+        .where((e) => e.value.isNotEmpty)
+        .map((e) => '${e.key}: ${e.value}')
+        .join('\n');
+    final combined = [extras, base].where((s) => s.isNotEmpty).join('\n\n');
+    return combined.isEmpty ? null : combined;
+  }
+
   Future<void> _submit() async {
     if (_category == null || _titleController.text.trim().isEmpty) {
       setState(() => _error = 'Please choose a category and a short title');
@@ -97,8 +148,9 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     try {
       final request = await ApiService.createServiceRequest(
         category: _category!,
+        serviceType: _serviceType,
         title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        description: _composedDescription(),
         beneficiaryId: _beneficiaryId,
         amount: _amountController.text.trim().isEmpty ? null : num.tryParse(_amountController.text.trim()),
       );
@@ -168,8 +220,39 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               items: kServiceCategories
                   .map((c) => DropdownMenuItem(value: c.value, child: Text(c.label)))
                   .toList(),
-              onChanged: (v) => setState(() => _category = v),
+              onChanged: _onCategoryChanged,
             ),
+            if ((_categoryOption?.serviceTypes ?? const []).isNotEmpty) ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _serviceType,
+                decoration: const InputDecoration(labelText: 'Specific service'),
+                items: _categoryOption!.serviceTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) => setState(() => _serviceType = v),
+              ),
+            ],
+            if (_categoryOption?.notice != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: MidManColors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline, size: 16, color: MidManColors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(_categoryOption!.notice!, style: const TextStyle(fontSize: 12))),
+                  ],
+                ),
+              ),
+            ],
+            for (final name in _categoryOption?.extraFields ?? const []) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _extraFieldControllers[name],
+                decoration: InputDecoration(labelText: name),
+              ),
+            ],
             const SizedBox(height: 16),
             if (_loadingBeneficiaries)
               const LinearProgressIndicator()
@@ -192,7 +275,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             TextField(
               controller: _descriptionController,
               maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Details (optional)', hintText: 'School name, deadline, anything we should know'),
+              decoration: InputDecoration(
+                labelText: 'Details (optional)',
+                hintText: _group?.descriptionHint ?? 'School name, deadline, anything we should know',
+              ),
             ),
             const SizedBox(height: 16),
             TextField(

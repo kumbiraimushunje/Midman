@@ -113,6 +113,40 @@ and seeded with demo accounts.
       Verified end-to-end: uploaded a real file through the API, confirmed
       it lands in S3, fetched it back through a presigned URL (HTTP 200,
       correct content), and confirmed the app's evidence tile opens it.
+- [x] 3-level service taxonomy: 7 numbered Service Groups (client-side-only
+      navigation, e.g. "1. Family Care & Shopping") → Category (the
+      `ServiceCategory` Postgres enum, 21 active values plus 7 retired ones
+      kept for historical-row compatibility since Postgres enum values can't
+      be dropped) → Service Type (free-text `service_type` column,
+      validated against a per-category allow-list at the Pydantic layer).
+      Taxonomy data lives in `backend/app/service_taxonomy.py` and is
+      hand-mirrored in `mobile/lib/models/models.dart`'s `kServiceGroups`
+      (both files carry a comment flagging this and instructing to keep
+      them in sync). Home screen now shows the 7 numbered group cards;
+      multi-category groups drop into a `CategoryPickerScreen`,
+      single-category groups (Transportation, Other) skip straight to the
+      request form. The request form gained a "Specific service" dropdown,
+      a warning banner for Government & Administrative Errands (ordinary
+      admin assistance vs. work needing a licensed professional/Power of
+      Attorney), a description-field hint for Gifts & Celebrations, and
+      extra structured fields for Airport Transfers (Airport, Flight
+      number, Passenger, Arrival time, Destination) folded into the
+      description as labelled lines. `service_type` is shown on both the
+      customer and staff request detail screens. Verified end-to-end: all
+      12 new enum values + the mismatched-category-422 + AI concierge
+      category vocabulary via curl against the real Neon DB, and every
+      group/category/notice/hint/extra-field combination visually in the
+      running app, including a real submitted request
+      (`healthcare`/`Buy Medication`) round-tripped through the API.
+- [x] Country + phone country-code dropdowns on registration: a ~195-entry
+      `kCountries` list (`mobile/lib/country_data.dart`, ISO 3166-1 alpha-2
+      + E.164 dial code, flag emoji computed from the ISO code rather than
+      stored) replaced the old free-text country field and split the phone
+      field into a dial-code dropdown (defaults to +263 Zimbabwe) plus a
+      local-number field, concatenated before sending to the API. Verified
+      by registering a real account through the running app and confirming
+      via `GET /me` that `phone` and `country_of_residence` were stored
+      correctly (`+263771234567`, `Afghanistan`).
 
 ### Phase 2 — Admin / staff tooling (done, folded into Phase 1)
 Delivered as the "Staff/admin screens" item above: role-based queue, status

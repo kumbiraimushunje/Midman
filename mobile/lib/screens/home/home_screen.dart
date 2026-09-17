@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import '../requests/category_picker_screen.dart';
 import '../requests/new_request_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -179,13 +180,22 @@ class _HomeScreenState extends State<HomeScreen> {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: kServiceCategories
-                .map((c) => _ServiceCard(
-                      option: c,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => NewRequestScreen(initialCategory: c.value)),
-                      ),
+            childAspectRatio: 1.3,
+            children: kServiceGroups
+                .map((g) => _ServiceGroupCard(
+                      group: g,
+                      onTap: () {
+                        // A group with exactly one category (e.g. Transportation,
+                        // Other) has nothing to pick between - skip straight to
+                        // the request form instead of a picker with one button.
+                        if (g.categories.length == 1) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => NewRequestScreen(initialCategory: g.categories.first.value)),
+                          );
+                        } else {
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => CategoryPickerScreen(group: g)));
+                        }
+                      },
                     ))
                 .toList(),
           ),
@@ -195,11 +205,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  final ServiceCategoryOption option;
+class _ServiceGroupCard extends StatelessWidget {
+  final ServiceGroup group;
   final VoidCallback onTap;
 
-  const _ServiceCard({required this.option, required this.onTap});
+  const _ServiceGroupCard({required this.group, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -213,9 +223,15 @@ class _ServiceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(option.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            const SizedBox(height: 4),
-            Text(option.subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(color: MidManColors.gold, shape: BoxShape.circle),
+              child: Text(group.number, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 12)),
+            ),
+            const SizedBox(height: 8),
+            Text(group.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
