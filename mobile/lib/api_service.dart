@@ -359,6 +359,15 @@ class ApiService {
     _decode(res);
   }
 
+  /// Staff/admin only - manually processes every due Property Inspection
+  /// reminder (emails the customer, reschedules it). Stand-in until a real
+  /// cron trigger is wired up before launch - returns how many were sent.
+  static Future<int> runDueInspectionReminders() async {
+    final res = await http.post(Uri.parse('$_baseUrl/reminders/property-inspection/run-due'), headers: await _authHeaders());
+    final data = _decode(res);
+    return data['sent'] as int;
+  }
+
   /// Admin only - the full user directory, optionally filtered by [role] or a
   /// name/email/member-id [search] substring. Deactivated accounts are
   /// excluded unless [includeInactive] is set.

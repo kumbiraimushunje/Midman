@@ -3,12 +3,39 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
+import '../../theme.dart';
 
 /// Staff verification queue - individuals (id/passport) and Business
 /// accounts (company registration documents) share this screen as two tabs
 /// since they're the same review workflow applied to two kinds of accounts.
-class KycReviewScreen extends StatelessWidget {
+class KycReviewScreen extends StatefulWidget {
   const KycReviewScreen({super.key});
+
+  @override
+  State<KycReviewScreen> createState() => _KycReviewScreenState();
+}
+
+class _KycReviewScreenState extends State<KycReviewScreen> {
+  bool _sendingReminders = false;
+
+  /// Manual stand-in for the real cron trigger the Property Inspection
+  /// reminder feature still needs before launch (see app/reminders.py) -
+  /// lets staff process due reminders on demand until that's wired up.
+  Future<void> _runDueReminders() async {
+    setState(() => _sendingReminders = true);
+    try {
+      final sent = await ApiService.runDueInspectionReminders();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sent == 0 ? 'No reminders were due.' : 'Sent $sent reminder${sent == 1 ? '' : 's'}.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _sendingReminders = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +44,18 @@ class KycReviewScreen extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
                 children: [
-                  Expanded(child: Text('KYC Review', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+                  const Expanded(child: Text('KYC Review', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+                  IconButton(
+                    onPressed: _sendingReminders ? null : _runDueReminders,
+                    tooltip: 'Send due property inspection reminders',
+                    icon: _sendingReminders
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.notifications_active_outlined, color: MidManColors.gold),
+                  ),
                 ],
               ),
             ),
