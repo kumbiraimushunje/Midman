@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: midman-backend
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /docs
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        value: notifications@midman.app
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: us-east-1
+      - key: S3_BUCKET_NAME
+        sync: false
+      - key: PAYMENT_RETURN_URL
+        sync: false
+      - key: PAYNOW_INTEGRATION_ID
+        sync: false
+      - key: PAYNOW_INTEGRATION_KEY
+        sync: false
+      - key: PAYNOW_RESULT_URL
+        sync: false
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_SECRET_HASH
+        sync: false
