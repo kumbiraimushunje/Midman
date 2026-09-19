@@ -28,6 +28,16 @@ class KYCStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class BusinessRole(str, enum.Enum):
+    """Fixed roles for employees of a Business account - see business_permissions.py
+    for what each one can actually do. Only set when the user belongs to a Company."""
+    administrator = "administrator"  # can do everything - create, approve spend, manage employees, view reports
+    finance = "finance"              # approves spend/quotations, views reports - doesn't create requests
+    operations = "operations"        # creates and manages requests day-to-day - can't approve spend
+    requester = "requester"          # can create requests only, sees just their own
+    viewer_auditor = "viewer_auditor"  # read-only - completed jobs and reports, no create/approve
+
+
 class ServiceCategory(str, enum.Enum):
     # Retired - kept only so historical rows created before the 3-level
     # taxonomy (see service_taxonomy.py) stay valid. Never offered for new
@@ -142,6 +152,11 @@ class User(Base):
     account_type = Column(Enum(AccountType), default=AccountType.payg, nullable=False)
     trial_ends_at = Column(DateTime, nullable=True)
 
+    # Set only for employees of a MidMan Business account (see Company below).
+    # A personal/individual customer has both of these as NULL.
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
+    business_role = Column(Enum(BusinessRole), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     deleted_at = Column(DateTime, nullable=True)  # soft delete - account deletion is a launch requirement
     deletion_reason = Column(String, nullable=True)  # optional feedback captured when the customer deletes their own account
@@ -150,6 +165,69 @@ class User(Base):
     requests_made = relationship(
         "ServiceRequest", back_populates="requester", foreign_keys="ServiceRequest.requester_id"
     )
+    company = relationship("Company", back_populates="employees", foreign_keys=[company_id])
+
+
+class Company(Base):
+    """A MidMan Business account. A company isn't a login itself - it's the
+    umbrella a fixed set of employee Users (see BusinessRole) are created
+    under, each with their own login and permissions. The registrant of the
+    business automatically becomes its first employee with the
+    administrator role (see /auth/register-business)."""
+
+    __tablename__ = "companies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    business_id = Column(String, unique=True, nullable=False, index=True)  # e.g. BUS-000001
+
+    legal_name = Column(String, nullable=False)
+    trading_name = Column(String, nullable=True)
+    registration_number = Column(String, nullable=False)
+    country = Column(String, nullable=False)
+    registered_address = Column(String, nullable=False)
+    business_address = Column(String, nullable=True)  # if different from the registered address
+    industry = Column(String, nullable=False)
+
+    authorized_representative_name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+
+    billing_contact_name = Column(String, nullable=True)
+    billing_contact_email = Column(String, nullable=True)
+    billing_contact_phone = Column(String, nullable=True)
+    operations_contact_name = Column(String, nullable=True)
+    operations_contact_email = Column(String, nullable=True)
+    operations_contact_phone = Column(String, nullable=True)
+
+    tax_details = Column(String, nullable=True)  # VAT/tax ID, where required
+
+    kyc_status = Column(Enum(KYCStatus), default=KYCStatus.pending, nullable=False)
+    kyc_rejection_reason = Column(String, nullable=True)
+    kyc_reviewed_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    employees = relationship("User", back_populates="company", foreign_keys=[User.company_id])
+    documents = relationship("CompanyDocument", back_populates="company", cascade="all, delete-orphan")
+
+
+class CompanyDocument(Base):
+    """Company registration documents (certificate of incorporation, tax
+    clearance, etc) uploaded for the staff KYC-style review of a Business
+    account - the company equivalent of User.id_document_path."""
+
+    __tablename__ = "company_documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    uploaded_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    file_url = Column(String, nullable=False)
+    caption = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    company = relationship("Company", back_populates="documents")
 
 
 class Beneficiary(Base):
@@ -187,6 +265,8 @@ class ServiceRequest(Base):
 
     category = Column(Enum(ServiceCategory), nullable=False)
     service_type = Column(String, nullable=True)  # the specific Level-3 pick within `category` - see service_taxonomy.py
+    country = Column(String, nullable=True)  # where the service is needed (defaults to the requester's own country)
+    city = Column(String, nullable=True)  # only set for countries with cities modeled - see city_availability.py
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
 

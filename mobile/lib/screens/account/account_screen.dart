@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import '../business/employees_screen.dart';
 import '../login_screen.dart';
 import '../support/support_chat_screen.dart';
 import 'subscription_screen.dart';
@@ -186,6 +187,10 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                 ),
               ),
+              if (user.isBusinessAccount) ...[
+                const SizedBox(height: 24),
+                _BusinessSection(user: user),
+              ],
               const SizedBox(height: 24),
               _KycSection(user: user, uploading: _uploadingKyc, onUpload: _uploadKycDocument),
               const SizedBox(height: 24),
@@ -272,6 +277,45 @@ class _KycSection extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BusinessSection extends StatelessWidget {
+  final MidManUser user;
+  const _BusinessSection({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.apartment_outlined, color: MidManColors.gold),
+              const SizedBox(width: 12),
+              const Expanded(child: Text('Business account', style: TextStyle(fontWeight: FontWeight.w600))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFF1EEE7), borderRadius: BorderRadius.circular(20)),
+                child: Text(businessRoleLabel(user.businessRole), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EmployeesScreen())),
+              icon: const Icon(Icons.groups_outlined),
+              label: Text(userCanManageEmployees(user) ? 'Manage team' : 'View team'),
+            ),
+          ),
         ],
       ),
     );

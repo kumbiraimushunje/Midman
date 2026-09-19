@@ -81,6 +81,28 @@ def generate_payment_reference(db: Session) -> str:
     return f"MIDPAY-{seq:06d}"
 
 
+def generate_business_id(db: Session) -> str:
+    """BUS-000123 - a single global sequence shared by every registered Company."""
+    counter = (
+        db.query(MemberIdCounter)
+        .filter(MemberIdCounter.prefix == "BUS")
+        .with_for_update()
+        .first()
+    )
+    if counter is None:
+        counter = MemberIdCounter(prefix="BUS", next_seq=1)
+        db.add(counter)
+        db.flush()
+        seq = 1
+    else:
+        seq = counter.next_seq
+
+    counter.next_seq = seq + 1
+    db.flush()
+
+    return f"BUS-{seq:06d}"
+
+
 def generate_request_number(db: Session) -> str:
     """MID-000123 - a single global sequence shared by every request, regardless of category."""
     counter = (

@@ -10,7 +10,7 @@ import smtplib
 from email.message import EmailMessage
 
 from .config import settings
-from .models import RequestStatus, ServiceRequest, User
+from .models import Company, RequestStatus, ServiceRequest, User
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,23 @@ def notify_kyc_decision(user: User, approved: bool, reason: str | None) -> None:
         + "MidMan"
     )
     _send(user.email, subject, body)
+
+
+def notify_company_kyc_decision(company: Company, approved: bool, reason: str | None) -> None:
+    subject = f"Your Business account verification was {'approved' if approved else 'declined'}"
+    body = (
+        f"Hi {company.authorized_representative_name},\n\n"
+        + (
+            f"{company.legal_name}'s registration documents have been verified - your Business account "
+            f"({company.business_id}) is now fully active.\n\n"
+            if approved
+            else f"We weren't able to verify {company.legal_name}'s registration documents."
+            + (f"\n\nReason: {reason}" if reason else "")
+            + "\n\nPlease upload clearer copies in the MidMan app and we'll take another look.\n\n"
+        )
+        + "MidMan"
+    )
+    _send(company.email, subject, body)
 
 
 def _send(to_email: str, subject: str, body: str) -> None:

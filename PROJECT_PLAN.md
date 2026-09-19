@@ -280,7 +280,75 @@ updates, evidence, and fraud-risk flags visible before approving.
 - [ ] WhatsApp channel
 - [ ] Push notifications
 
-### Phase 7 — Launch
+### Phase 7 — Business (multi-user) accounts & city-aware requests
+- [x] MidMan Business accounts: a company isn't one login - registering via
+      "Register a Business account" on the login screen (`POST
+      /auth/register-business`) creates a `Company` (legal name, trading
+      name, registration number, country, registered/business address,
+      industry, authorized representative, company email/phone, billing
+      and operations contacts, tax details) and its registrant as the
+      first employee with the `administrator` role, auto-logged in. The
+      company gets a Business ID (`BUS-000123`, `id_generator.py`'s
+      counter pattern) and starts `kyc_status=pending` - mirrors an
+      individual's id-document review exactly: staff verify it from a new
+      "Businesses" tab on the staff KYC Review screen (`GET
+      /companies/pending`, `POST /companies/{id}/decision`), and an
+      Administrator can (re-)upload registration documents from the app
+      (`POST /company/documents`) which resets it to pending, same as an
+      individual's id/passport re-upload. Employees can be added and the
+      app used immediately while verification is pending - it isn't a
+      hard gate on activity, same as individual KYC today.
+- [x] Fixed employee roles, not a custom permission builder
+      (`app/business_permissions.py`, mirrored in
+      `mobile/lib/models/models.dart`): **Administrator** (everything),
+      **Finance** (approves spend/quotations, views reports, can't
+      create requests), **Operations** (creates/manages requests, can't
+      approve spend), **Requester** (creates only, sees just their own),
+      **Viewer/Auditor** (read-only - completed jobs and reports only,
+      via a status filter on `/service-requests/mine`). An Administrator
+      manages the team from a new Employees ("Team") screen reachable
+      from Account - add an employee with a role, change a role, or
+      remove someone (an Administrator can't remove themselves). Business
+      employees use the exact same customer app (Home/Services/Requests/
+      Family/Account) as an individual - no separate app or shell, since
+      `role` stays `customer`; only `company_id`/`business_role` differ.
+      Permission enforcement is server-side (`create_service_request` 403s
+      a Finance/Viewer employee who lacks `create_request`; `.../pay`
+      requires `can_approve_spending` for a business employee regardless
+      of who raised the request, so a Requester can't pay even their own
+      request) with matching client-side gating (a blocking banner and a
+      disabled Submit button on New Request; the Pay button relies on the
+      same server error surfaced inline, consistent with how PAYG's
+      beneficiary restriction is already handled). Verified end-to-end via
+      curl against the real Neon DB: registration, Business ID
+      generation, all 5 roles' create/approve/manage-employee gates (both
+      allow and 403 cases), company-wide `mine` visibility for
+      Administrator vs a Requester only seeing their own, staff company
+      review (pending list + approve), and Finance successfully paying on
+      behalf of a Requester's request while the Requester themselves is
+      blocked from paying it.
+- [x] Country + city on each request: a `country`/`city` pair (nullable
+      columns on `service_requests`) is picked on the New Request form
+      itself (not account-level, since one customer might request in
+      different places) - Country defaults to the customer's own
+      `country_of_residence` but is editable per request; a City dropdown
+      appears only for Zimbabwe (the only country with cities modeled so
+      far - Harare, Bulawayo, Mutare, `app/city_availability.py` /
+      `mobile/lib/city_data.dart`) and the Category dropdown is disabled
+      until a city is chosen, then filtered to that city's available
+      categories - enforced both client-side (filtered dropdown items)
+      and server-side (a Pydantic validator on `ServiceRequestCreate`
+      rejects a category not offered in the given city). Every category
+      currently defaults to available in all 3 cities - the per-city
+      restriction mechanism is built and wired end-to-end, but which
+      specific categories should actually be restricted to which city
+      hasn't been specified yet, so nothing is excluded until that data
+      is provided. City/country show on both the customer and staff
+      request detail screens. Verified via curl: country defaults
+      correctly when omitted, an explicit country/city round-trips
+      correctly, and the availability validator runs without error.
+
+### Phase 8 — Launch
 iOS build via CI (Codemagic or GitHub Actions macOS runner — this dev
 machine is Windows and cannot build/sign iOS locally), AWS deployment
 (backend + RDS), app store submissions.

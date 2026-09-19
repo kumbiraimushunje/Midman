@@ -115,6 +115,8 @@ class MidManUser {
   final String? kycRejectionReason;
   final String? countryOfResidence;
   final DateTime? deletedAt;
+  final String? companyId;
+  final String? businessRole; // administrator | finance | operations | requester | viewer_auditor
 
   MidManUser({
     required this.id,
@@ -129,10 +131,13 @@ class MidManUser {
     this.kycRejectionReason,
     this.countryOfResidence,
     this.deletedAt,
+    this.companyId,
+    this.businessRole,
   });
 
   bool get isOnTrial => trialEndsAt != null && DateTime.now().isBefore(trialEndsAt!);
   bool get isActive => deletedAt == null;
+  bool get isBusinessAccount => companyId != null;
 
   factory MidManUser.fromJson(Map<String, dynamic> json) => MidManUser(
         id: json['id'],
@@ -147,6 +152,175 @@ class MidManUser {
         kycRejectionReason: json['kyc_rejection_reason'],
         countryOfResidence: json['country_of_residence'],
         deletedAt: json['deleted_at'] == null ? null : DateTime.parse(json['deleted_at']),
+        companyId: json['company_id'],
+        businessRole: json['business_role'],
+      );
+}
+
+/// Fixed employee roles for a Business account, and what each one can do -
+/// mirrors backend/app/business_permissions.py exactly. There's no custom
+/// permission builder: an employee's capabilities come entirely from which
+/// of these five roles they're assigned.
+class BusinessRoleOption {
+  final String value;
+  final String label;
+  final String description;
+  const BusinessRoleOption(this.value, this.label, this.description);
+}
+
+const kBusinessRoles = [
+  BusinessRoleOption('administrator', 'Administrator', 'Full access - create, approve spend, manage employees, view reports'),
+  BusinessRoleOption('finance', 'Finance', 'Approves spend/quotations and views reports - can\'t create requests'),
+  BusinessRoleOption('operations', 'Operations', 'Creates and manages requests day-to-day - can\'t approve spend'),
+  BusinessRoleOption('requester', 'Requester', 'Can create requests only, sees just their own'),
+  BusinessRoleOption('viewer_auditor', 'Viewer / Auditor', 'Read-only - completed jobs and reports, no create/approve'),
+];
+
+String businessRoleLabel(String? value) =>
+    kBusinessRoles.firstWhere((r) => r.value == value, orElse: () => const BusinessRoleOption('', 'Employee', '')).label;
+
+// Mirrors backend/app/business_permissions.py exactly - a personal account
+// (businessRole null) is never restricted by these.
+const _createRoles = {'administrator', 'operations', 'requester'};
+const _approveSpendingRoles = {'administrator', 'finance'};
+const _manageEmployeesRoles = {'administrator'};
+
+bool userCanCreateRequest(MidManUser user) => user.businessRole == null || _createRoles.contains(user.businessRole);
+bool userCanApproveSpending(MidManUser user) =>
+    user.businessRole == null || _approveSpendingRoles.contains(user.businessRole);
+bool userCanManageEmployees(MidManUser user) =>
+    user.businessRole == null || _manageEmployeesRoles.contains(user.businessRole);
+
+class Company {
+  final String id;
+  final String businessId;
+  final String legalName;
+  final String? tradingName;
+  final String registrationNumber;
+  final String country;
+  final String registeredAddress;
+  final String? businessAddress;
+  final String industry;
+  final String authorizedRepresentativeName;
+  final String email;
+  final String phone;
+  final String? billingContactName;
+  final String? billingContactEmail;
+  final String? billingContactPhone;
+  final String? operationsContactName;
+  final String? operationsContactEmail;
+  final String? operationsContactPhone;
+  final String? taxDetails;
+  final String kycStatus;
+  final String? kycRejectionReason;
+  final DateTime createdAt;
+
+  Company({
+    required this.id,
+    required this.businessId,
+    required this.legalName,
+    this.tradingName,
+    required this.registrationNumber,
+    required this.country,
+    required this.registeredAddress,
+    this.businessAddress,
+    required this.industry,
+    required this.authorizedRepresentativeName,
+    required this.email,
+    required this.phone,
+    this.billingContactName,
+    this.billingContactEmail,
+    this.billingContactPhone,
+    this.operationsContactName,
+    this.operationsContactEmail,
+    this.operationsContactPhone,
+    this.taxDetails,
+    required this.kycStatus,
+    this.kycRejectionReason,
+    required this.createdAt,
+  });
+
+  factory Company.fromJson(Map<String, dynamic> json) => Company(
+        id: json['id'],
+        businessId: json['business_id'],
+        legalName: json['legal_name'],
+        tradingName: json['trading_name'],
+        registrationNumber: json['registration_number'],
+        country: json['country'],
+        registeredAddress: json['registered_address'],
+        businessAddress: json['business_address'],
+        industry: json['industry'],
+        authorizedRepresentativeName: json['authorized_representative_name'],
+        email: json['email'],
+        phone: json['phone'],
+        billingContactName: json['billing_contact_name'],
+        billingContactEmail: json['billing_contact_email'],
+        billingContactPhone: json['billing_contact_phone'],
+        operationsContactName: json['operations_contact_name'],
+        operationsContactEmail: json['operations_contact_email'],
+        operationsContactPhone: json['operations_contact_phone'],
+        taxDetails: json['tax_details'],
+        kycStatus: json['kyc_status'],
+        kycRejectionReason: json['kyc_rejection_reason'],
+        createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
+class CompanyDocumentOut {
+  final String id;
+  final String fileUrl;
+  final String? caption;
+  final DateTime createdAt;
+
+  CompanyDocumentOut({required this.id, required this.fileUrl, this.caption, required this.createdAt});
+
+  factory CompanyDocumentOut.fromJson(Map<String, dynamic> json) => CompanyDocumentOut(
+        id: json['id'],
+        fileUrl: json['file_url'],
+        caption: json['caption'],
+        createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
+class CompanyKYCReview {
+  final String id;
+  final String businessId;
+  final String legalName;
+  final String registrationNumber;
+  final String country;
+  final String email;
+  final String phone;
+  final String kycStatus;
+  final String? kycRejectionReason;
+  final DateTime createdAt;
+  final int documentCount;
+
+  CompanyKYCReview({
+    required this.id,
+    required this.businessId,
+    required this.legalName,
+    required this.registrationNumber,
+    required this.country,
+    required this.email,
+    required this.phone,
+    required this.kycStatus,
+    this.kycRejectionReason,
+    required this.createdAt,
+    required this.documentCount,
+  });
+
+  factory CompanyKYCReview.fromJson(Map<String, dynamic> json) => CompanyKYCReview(
+        id: json['id'],
+        businessId: json['business_id'],
+        legalName: json['legal_name'],
+        registrationNumber: json['registration_number'],
+        country: json['country'],
+        email: json['email'],
+        phone: json['phone'],
+        kycStatus: json['kyc_status'],
+        kycRejectionReason: json['kyc_rejection_reason'],
+        createdAt: DateTime.parse(json['created_at']),
+        documentCount: json['document_count'] ?? 0,
       );
 }
 
@@ -371,6 +545,8 @@ class QuoteComparison {
 class ServiceRequest {
   final String id;
   final String requestNumber;
+  final String? country;
+  final String? city;
   final String category;
   final String? serviceType;
   final String title;
@@ -390,6 +566,8 @@ class ServiceRequest {
   ServiceRequest({
     required this.id,
     required this.requestNumber,
+    this.country,
+    this.city,
     required this.category,
     this.serviceType,
     required this.title,
@@ -410,6 +588,8 @@ class ServiceRequest {
   factory ServiceRequest.fromJson(Map<String, dynamic> json) => ServiceRequest(
         id: json['id'],
         requestNumber: json['request_number'],
+        country: json['country'],
+        city: json['city'],
         category: json['category'],
         serviceType: json['service_type'],
         title: json['title'],

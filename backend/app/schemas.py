@@ -5,7 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
-from .models import AccountType, KYCStatus, PaymentProvider, PaymentStatus, RequestStatus, ServiceCategory, UserRole
+from .city_availability import categories_available_in
+from .models import AccountType, BusinessRole, KYCStatus, PaymentProvider, PaymentStatus, RequestStatus, ServiceCategory, UserRole
 from .service_taxonomy import SERVICE_TYPES_BY_CATEGORY
 from .uploads import resolve_file_url
 
@@ -50,6 +51,111 @@ class UserOut(BaseModel):
     kyc_rejection_reason: Optional[str] = None
     country_of_residence: str
     created_at: datetime
+    company_id: Optional[uuid.UUID] = None
+    business_role: Optional[BusinessRole] = None
+
+
+class CompanyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    business_id: str
+    legal_name: str
+    trading_name: Optional[str] = None
+    registration_number: str
+    country: str
+    registered_address: str
+    business_address: Optional[str] = None
+    industry: str
+    authorized_representative_name: str
+    email: EmailStr
+    phone: str
+    billing_contact_name: Optional[str] = None
+    billing_contact_email: Optional[str] = None
+    billing_contact_phone: Optional[str] = None
+    operations_contact_name: Optional[str] = None
+    operations_contact_email: Optional[str] = None
+    operations_contact_phone: Optional[str] = None
+    tax_details: Optional[str] = None
+    kyc_status: KYCStatus
+    kyc_rejection_reason: Optional[str] = None
+    created_at: datetime
+
+
+class BusinessRegisterRequest(BaseModel):
+    # The registrant - becomes the company's first employee, as Administrator.
+    full_name: str
+    date_of_birth: date
+    email: EmailStr
+    phone: str
+    password: str
+
+    # The company itself.
+    legal_name: str
+    trading_name: Optional[str] = None
+    registration_number: str
+    country: str
+    registered_address: str
+    business_address: Optional[str] = None
+    industry: str
+    authorized_representative_name: str
+    company_email: EmailStr
+    company_phone: str
+    billing_contact_name: Optional[str] = None
+    billing_contact_email: Optional[str] = None
+    billing_contact_phone: Optional[str] = None
+    operations_contact_name: Optional[str] = None
+    operations_contact_email: Optional[str] = None
+    operations_contact_phone: Optional[str] = None
+    tax_details: Optional[str] = None
+
+
+class EmployeeCreate(BaseModel):
+    full_name: str
+    date_of_birth: date
+    email: EmailStr
+    phone: str
+    password: str
+    business_role: BusinessRole
+
+
+class EmployeeRoleUpdate(BaseModel):
+    business_role: BusinessRole
+
+
+class CompanyKYCReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    business_id: str
+    legal_name: str
+    registration_number: str
+    country: str
+    email: EmailStr
+    phone: str
+    kyc_status: KYCStatus
+    kyc_rejection_reason: Optional[str] = None
+    created_at: datetime
+    document_count: int = 0
+
+
+class CompanyKYCDecisionRequest(BaseModel):
+    approve: bool
+    reason: Optional[str] = None
+
+
+class CompanyDocumentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    file_url: str
+    caption: Optional[str] = None
+    created_at: datetime
+
+    @field_validator("file_url", mode="before")
+    @classmethod
+    def _resolve_url(cls, v):
+        return resolve_file_url(v)
 
 
 class SubscriptionChangeRequest(BaseModel):
@@ -75,6 +181,8 @@ class BeneficiaryOut(BaseModel):
 
 
 class ServiceRequestCreate(BaseModel):
+    country: Optional[str] = None
+    city: Optional[str] = None
     category: ServiceCategory
     service_type: Optional[str] = None
     title: str
@@ -82,6 +190,15 @@ class ServiceRequestCreate(BaseModel):
     beneficiary_id: Optional[uuid.UUID] = None
     amount: Optional[Decimal] = None
     currency: str = "USD"
+
+    @field_validator("category")
+    @classmethod
+    def _validate_category_available_in_city(cls, v: ServiceCategory, info) -> ServiceCategory:
+        city = info.data.get("city")
+        available = categories_available_in(city)
+        if available is not None and v.value not in available:
+            raise ValueError(f"'{v.value}' isn't offered in {city} yet")
+        return v
 
     @field_validator("service_type")
     @classmethod
@@ -127,6 +244,8 @@ class ServiceRequestOut(BaseModel):
 
     id: uuid.UUID
     request_number: str
+    country: Optional[str] = None
+    city: Optional[str] = None
     category: ServiceCategory
     service_type: Optional[str] = None
     title: str

@@ -13,12 +13,23 @@ from .ai_concierge import answer_support_question, compare_quotes, parse_invoice
 from .audit import record_audit
 from .database import get_db
 from .fraud_check import run_fraud_check
-from .id_generator import generate_member_id, generate_payment_reference, generate_request_number
+from .business_permissions import (
+    can_approve_spending,
+    can_create_request,
+    can_manage_employees,
+    can_view_all_company_requests,
+    can_view_company_reports,
+    visible_statuses_for_business_role,
+)
+from .id_generator import generate_business_id, generate_member_id, generate_payment_reference, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
     AccountType,
     AuditLog,
     Beneficiary,
+    BusinessRole,
+    Company,
+    CompanyDocument,
     Evidence,
     EvidenceType,
     KYCStatus,
@@ -31,7 +42,13 @@ from .models import (
     User,
     UserRole,
 )
-from .notifications import notify_decision, notify_kyc_decision, notify_payment_received, notify_status_change
+from .notifications import (
+    notify_company_kyc_decision,
+    notify_decision,
+    notify_kyc_decision,
+    notify_payment_received,
+    notify_status_change,
+)
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
@@ -76,6 +93,65 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.post("/auth/register-business", response_model=schemas.Token, status_code=201)
+def register_business(payload: schemas.BusinessRegisterRequest, db: Session = Depends(get_db)):
+    """Registers a MidMan Business account: creates the Company (kyc_status
+    starts pending, same as an individual's id-document review) and the
+    registrant as its first employee with the administrator role - they can
+    then add Sarah, John, Mary, Peter etc. from the Employees screen."""
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(400, "Email already registered")
+    if db.query(User).filter(User.phone == payload.phone).first():
+        raise HTTPException(400, "Phone already registered")
+
+    company = Company(
+        business_id=generate_business_id(db),
+        legal_name=payload.legal_name,
+        trading_name=payload.trading_name,
+        registration_number=payload.registration_number,
+        country=payload.country,
+        registered_address=payload.registered_address,
+        business_address=payload.business_address,
+        industry=payload.industry,
+        authorized_representative_name=payload.authorized_representative_name,
+        email=payload.company_email,
+        phone=payload.company_phone,
+        billing_contact_name=payload.billing_contact_name,
+        billing_contact_email=payload.billing_contact_email,
+        billing_contact_phone=payload.billing_contact_phone,
+        operations_contact_name=payload.operations_contact_name,
+        operations_contact_email=payload.operations_contact_email,
+        operations_contact_phone=payload.operations_contact_phone,
+        tax_details=payload.tax_details,
+    )
+    db.add(company)
+    db.flush()  # assigns company.id before the registrant references it
+
+    member_id = generate_member_id(db, payload.full_name)
+    user = User(
+        member_id=member_id,
+        full_name=payload.full_name,
+        date_of_birth=payload.date_of_birth,
+        email=payload.email,
+        phone=payload.phone,
+        password_hash=hash_password(payload.password),
+        country_of_residence=payload.country,
+        primary_purpose="Business",
+        trial_ends_at=trial_ends_at_for_new_user(),
+        company_id=company.id,
+        business_role=BusinessRole.administrator,
+    )
+    db.add(user)
+    db.flush()
+    record_audit(
+        db, user, "company.register", "company",
+        f"{user.full_name} registered {company.legal_name} as a Business account ({company.business_id})",
+        entity_id=company.id,
+    )
+    db.commit()
+    return schemas.Token(access_token=create_access_token(str(user.id)))
 
 
 @app.post("/auth/login", response_model=schemas.Token)
@@ -273,6 +349,8 @@ def create_service_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not can_create_request(current_user):
+        raise HTTPException(403, "Your role isn't allowed to create requests - ask your Administrator")
     if payload.beneficiary_id is not None:
         beneficiary = (
             db.query(Beneficiary)
@@ -286,6 +364,8 @@ def create_service_request(
         request_number=generate_request_number(db),
         requester_id=current_user.id,
         beneficiary_id=payload.beneficiary_id,
+        country=payload.country or current_user.country_of_residence,
+        city=payload.city,
         category=payload.category,
         service_type=payload.service_type,
         title=payload.title,
@@ -325,11 +405,24 @@ def list_all_requests(
 
 @app.get("/service-requests/mine", response_model=list[schemas.ServiceRequestOut])
 def my_requests(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """PAYG only sees requests still in flight ("no list of previous transactions")."""
-    query = db.query(ServiceRequest).filter(ServiceRequest.requester_id == current_user.id)
+    """PAYG only sees requests still in flight ("no list of previous transactions").
+    Business employees with company-wide visibility (Administrator, Finance,
+    Operations, Viewer/Auditor) see every request raised by anyone in their
+    company; a Requester only ever sees their own."""
+    if current_user.company_id is not None and can_view_all_company_requests(current_user):
+        query = (
+            db.query(ServiceRequest)
+            .join(User, ServiceRequest.requester_id == User.id)
+            .filter(User.company_id == current_user.company_id)
+        )
+    else:
+        query = db.query(ServiceRequest).filter(ServiceRequest.requester_id == current_user.id)
     allowed_statuses = visible_statuses_for(current_user)
     if allowed_statuses is not None:
         query = query.filter(ServiceRequest.status.in_(allowed_statuses))
+    business_statuses = visible_statuses_for_business_role(current_user)
+    if business_statuses is not None:
+        query = query.filter(ServiceRequest.status.in_(business_statuses))
     return query.order_by(ServiceRequest.created_at.desc()).all()
 
 
@@ -569,7 +662,14 @@ def initiate_payment(
     cards, Flutterwave for international cards - their country is only ever
     used client-side as a suggested default, never to force one or the other."""
     req = _get_request_or_404(request_id, db)
-    if req.requester_id != current_user.id:
+    if current_user.company_id is not None:
+        # Business accounts: paying is a spend-approval action, not an
+        # ownership one - only Administrator/Finance can trigger it, even
+        # for a request they raised themselves (e.g. a Requester can't).
+        allowed = req.requester.company_id == current_user.company_id and can_approve_spending(current_user)
+    else:
+        allowed = req.requester_id == current_user.id
+    if not allowed:
         raise HTTPException(403, "Not your request")
     if req.status != RequestStatus.payment_pending:
         raise HTTPException(400, "This request isn't awaiting payment")
@@ -785,6 +885,212 @@ def decide_kyc(
     db.refresh(target)
     background_tasks.add_task(notify_kyc_decision, target, payload.approve, payload.reason)
     return target
+
+
+# ---------- Business / Company accounts ----------
+
+def _require_company(current_user: User) -> Company:
+    if current_user.company_id is None:
+        raise HTTPException(403, "Not a Business account")
+    return current_user.company
+
+
+@app.get("/company/me", response_model=schemas.CompanyOut)
+def my_company(current_user: User = Depends(get_current_user)):
+    return _require_company(current_user)
+
+
+@app.get("/company/employees", response_model=list[schemas.UserOut])
+def list_employees(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_company(current_user)
+    return (
+        db.query(User)
+        .filter(User.company_id == current_user.company_id, User.deleted_at.is_(None))
+        .order_by(User.created_at.asc())
+        .all()
+    )
+
+
+@app.post("/company/employees", response_model=schemas.UserOut, status_code=201)
+def create_employee(
+    payload: schemas.EmployeeCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    company = _require_company(current_user)
+    if not can_manage_employees(current_user):
+        raise HTTPException(403, "Only an Administrator can add employees")
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(400, "Email already registered")
+    if db.query(User).filter(User.phone == payload.phone).first():
+        raise HTTPException(400, "Phone already registered")
+
+    member_id = generate_member_id(db, payload.full_name)
+    employee = User(
+        member_id=member_id,
+        full_name=payload.full_name,
+        date_of_birth=payload.date_of_birth,
+        email=payload.email,
+        phone=payload.phone,
+        password_hash=hash_password(payload.password),
+        country_of_residence=company.country,
+        primary_purpose="Business",
+        trial_ends_at=trial_ends_at_for_new_user(),
+        company_id=company.id,
+        business_role=payload.business_role,
+    )
+    db.add(employee)
+    db.flush()
+    record_audit(
+        db, current_user, "company.employee_added", "user",
+        f"{current_user.full_name} added {employee.full_name} to {company.legal_name} as {payload.business_role.value}",
+        entity_id=employee.id,
+    )
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@app.patch("/company/employees/{user_id}", response_model=schemas.UserOut)
+def update_employee_role(
+    user_id,
+    payload: schemas.EmployeeRoleUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_company(current_user)
+    if not can_manage_employees(current_user):
+        raise HTTPException(403, "Only an Administrator can change employee roles")
+    employee = (
+        db.query(User)
+        .filter(User.id == user_id, User.company_id == current_user.company_id)
+        .first()
+    )
+    if employee is None:
+        raise HTTPException(404, "Employee not found")
+
+    old_role = employee.business_role.value if employee.business_role else None
+    employee.business_role = payload.business_role
+    record_audit(
+        db, current_user, "company.employee_role_changed", "user",
+        f"{current_user.full_name} changed {employee.full_name}'s role from {old_role} to {payload.business_role.value}",
+        entity_id=employee.id,
+    )
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
+@app.delete("/company/employees/{user_id}", status_code=204)
+def remove_employee(
+    user_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_company(current_user)
+    if not can_manage_employees(current_user):
+        raise HTTPException(403, "Only an Administrator can remove employees")
+    if str(user_id) == str(current_user.id):
+        raise HTTPException(400, "You can't remove yourself")
+    employee = (
+        db.query(User)
+        .filter(User.id == user_id, User.company_id == current_user.company_id)
+        .first()
+    )
+    if employee is None:
+        raise HTTPException(404, "Employee not found")
+
+    employee.deleted_at = datetime.utcnow()
+    record_audit(
+        db, current_user, "company.employee_removed", "user",
+        f"{current_user.full_name} removed {employee.full_name} from {current_user.company.legal_name}",
+        entity_id=employee.id,
+    )
+    db.commit()
+
+
+@app.post("/company/documents", response_model=schemas.CompanyDocumentOut, status_code=201)
+async def upload_company_document(
+    caption: str = Form(None),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """An Administrator uploads (or re-uploads) a company registration
+    document - resets the company to pending review, same as an
+    individual's id/passport re-upload."""
+    company = _require_company(current_user)
+    if not can_manage_employees(current_user):
+        raise HTTPException(403, "Only an Administrator can upload company documents")
+
+    file_url = await save_upload(file)
+    doc = CompanyDocument(company_id=company.id, uploaded_by_id=current_user.id, file_url=file_url, caption=caption)
+    db.add(doc)
+    company.kyc_status = KYCStatus.pending
+    company.kyc_rejection_reason = None
+    company.kyc_reviewed_at = None
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+@app.get("/company/documents", response_model=list[schemas.CompanyDocumentOut])
+def list_company_documents(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    company = _require_company(current_user)
+    return (
+        db.query(CompanyDocument)
+        .filter(CompanyDocument.company_id == company.id)
+        .order_by(CompanyDocument.created_at.desc())
+        .all()
+    )
+
+
+@app.get("/companies/pending", response_model=list[schemas.CompanyKYCReviewOut])
+def pending_company_reviews(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The staff review queue - Business accounts awaiting verification."""
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    companies = (
+        db.query(Company)
+        .filter(Company.kyc_status == KYCStatus.pending, Company.deleted_at.is_(None))
+        .order_by(Company.created_at.asc())
+        .all()
+    )
+    results = []
+    for company in companies:
+        out = schemas.CompanyKYCReviewOut.model_validate(company)
+        out.document_count = len(company.documents)
+        results.append(out)
+    return results
+
+
+@app.post("/companies/{company_id}/decision", response_model=schemas.CompanyOut)
+def decide_company_kyc(
+    company_id,
+    payload: schemas.CompanyKYCDecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+        raise HTTPException(403, "Staff only")
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if company is None:
+        raise HTTPException(404, "Company not found")
+
+    company.kyc_status = KYCStatus.verified if payload.approve else KYCStatus.rejected
+    company.kyc_rejection_reason = None if payload.approve else payload.reason
+    company.kyc_reviewed_at = datetime.utcnow()
+    record_audit(
+        db, current_user, "company.kyc_decision", "company",
+        f"{current_user.full_name} {'approved' if payload.approve else 'declined'} {company.legal_name}'s Business verification",
+        entity_id=company.id,
+        meta={"approved": payload.approve, "reason": payload.reason},
+    )
+    db.commit()
+    db.refresh(company)
+    background_tasks.add_task(notify_company_kyc_decision, company, payload.approve, payload.reason)
+    return company
 
 
 # ---------- Admin: user management ----------

@@ -186,6 +186,8 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
                   _InfoRow(label: 'For', value: '${req.beneficiary!.fullName} (${req.beneficiary!.relationshipType})'),
                 _InfoRow(label: 'Category', value: req.category.replaceAll('_', ' ')),
                 if (req.serviceType != null) _InfoRow(label: 'Service', value: req.serviceType!),
+                if (req.city != null || req.country != null)
+                  _InfoRow(label: 'Location', value: [req.city, req.country].where((s) => s != null).join(', ')),
                 if (req.amount != null) _InfoRow(label: 'Amount', value: '${req.currency} ${req.amount}'),
                 if (req.description != null && req.description!.isNotEmpty)
                   _InfoRow(label: 'Details', value: req.description!),

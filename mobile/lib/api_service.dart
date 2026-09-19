@@ -78,6 +78,66 @@ class ApiService {
     _decode(res);
   }
 
+  /// Registers a MidMan Business account: the company itself plus the
+  /// registrant as its first employee (Administrator role). Logs the
+  /// registrant straight in - unlike personal [register], no separate
+  /// sign-in step is needed before they can start inviting their team.
+  static Future<void> registerBusiness({
+    required String fullName,
+    required String dateOfBirth,
+    required String email,
+    required String phone,
+    required String password,
+    required String legalName,
+    String? tradingName,
+    required String registrationNumber,
+    required String country,
+    required String registeredAddress,
+    String? businessAddress,
+    required String industry,
+    required String authorizedRepresentativeName,
+    required String companyEmail,
+    required String companyPhone,
+    String? billingContactName,
+    String? billingContactEmail,
+    String? billingContactPhone,
+    String? operationsContactName,
+    String? operationsContactEmail,
+    String? operationsContactPhone,
+    String? taxDetails,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/register-business'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'full_name': fullName,
+        'date_of_birth': dateOfBirth,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'legal_name': legalName,
+        'trading_name': tradingName,
+        'registration_number': registrationNumber,
+        'country': country,
+        'registered_address': registeredAddress,
+        'business_address': businessAddress,
+        'industry': industry,
+        'authorized_representative_name': authorizedRepresentativeName,
+        'company_email': companyEmail,
+        'company_phone': companyPhone,
+        'billing_contact_name': billingContactName,
+        'billing_contact_email': billingContactEmail,
+        'billing_contact_phone': billingContactPhone,
+        'operations_contact_name': operationsContactName,
+        'operations_contact_email': operationsContactEmail,
+        'operations_contact_phone': operationsContactPhone,
+        'tax_details': taxDetails,
+      }),
+    );
+    final data = _decode(res);
+    await _storage.write(key: 'access_token', value: data['access_token']);
+  }
+
   static Future<void> login({required String email, required String password}) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
@@ -186,6 +246,90 @@ class ApiService {
   static Future<void> decideKyc({required String userId, required bool approve, String? reason}) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/kyc/$userId/decision'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'approve': approve, 'reason': reason}),
+    );
+    _decode(res);
+  }
+
+  // ---------- Business accounts ----------
+
+  static Future<Company> myCompany() async {
+    final res = await http.get(Uri.parse('$_baseUrl/company/me'), headers: await _authHeaders());
+    return Company.fromJson(_decode(res));
+  }
+
+  static Future<List<MidManUser>> listEmployees() async {
+    final res = await http.get(Uri.parse('$_baseUrl/company/employees'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => MidManUser.fromJson(e)).toList();
+  }
+
+  static Future<void> createEmployee({
+    required String fullName,
+    required String dateOfBirth,
+    required String email,
+    required String phone,
+    required String password,
+    required String businessRole,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/company/employees'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'full_name': fullName,
+        'date_of_birth': dateOfBirth,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'business_role': businessRole,
+      }),
+    );
+    _decode(res);
+  }
+
+  static Future<void> updateEmployeeRole({required String userId, required String businessRole}) async {
+    final res = await http.patch(
+      Uri.parse('$_baseUrl/company/employees/$userId'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'business_role': businessRole}),
+    );
+    _decode(res);
+  }
+
+  static Future<void> removeEmployee(String userId) async {
+    final res = await http.delete(Uri.parse('$_baseUrl/company/employees/$userId'), headers: await _authHeaders());
+    _decode(res);
+  }
+
+  static Future<List<CompanyDocumentOut>> companyDocuments() async {
+    final res = await http.get(Uri.parse('$_baseUrl/company/documents'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => CompanyDocumentOut.fromJson(e)).toList();
+  }
+
+  static Future<void> uploadCompanyDocument({required List<int> bytes, required String filename, String? caption}) async {
+    final token = await _token;
+    final request = http.MultipartRequest('POST', Uri.parse('$_baseUrl/company/documents'));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    if (caption != null) request.fields['caption'] = caption;
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+
+    final streamed = await request.send();
+    final res = await http.Response.fromStream(streamed);
+    _decode(res);
+  }
+
+  /// Staff review queue - Business accounts awaiting verification.
+  static Future<List<CompanyKYCReview>> pendingCompanyReviews() async {
+    final res = await http.get(Uri.parse('$_baseUrl/companies/pending'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => CompanyKYCReview.fromJson(e)).toList();
+  }
+
+  static Future<void> decideCompanyKyc({required String companyId, required bool approve, String? reason}) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/companies/$companyId/decision'),
       headers: await _authHeaders(),
       body: jsonEncode({'approve': approve, 'reason': reason}),
     );
@@ -306,6 +450,8 @@ class ApiService {
   }
 
   static Future<ServiceRequest> createServiceRequest({
+    String? country,
+    String? city,
     required String category,
     String? serviceType,
     required String title,
@@ -317,6 +463,8 @@ class ApiService {
       Uri.parse('$_baseUrl/service-requests'),
       headers: await _authHeaders(),
       body: jsonEncode({
+        'country': country,
+        'city': city,
         'category': category,
         'service_type': serviceType,
         'title': title,

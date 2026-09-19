@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api_service.dart';
+import 'business/business_register_screen.dart';
 import 'register_screen.dart';
 import 'role_home_shell.dart';
 
@@ -82,6 +83,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         .push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
                   },
                   child: const Text("Don't have an account? Register"),
+                ),
+              ),
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context)
+                        .push(MaterialPageRoute(builder: (_) => const BusinessRegisterScreen()));
+                  },
+                  child: const Text('Register a Business account'),
                 ),
               ),
             ],
