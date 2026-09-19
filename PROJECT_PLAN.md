@@ -364,14 +364,16 @@ updates, evidence, and fraud-risk flags visible before approving.
       Request form when Property Inspections is picked - toggle on, choose
       frequency, "Save reminder" - independent of actually submitting a
       request. `GET/POST/DELETE /reminders/property-inspection` (upsert +
-      cancel) plus a staff/admin-only `POST .../run-due` that emails
-      everyone whose reminder is due and reschedules them - there's no
-      cron/scheduler in this project yet, so nothing calls that
-      automatically; a real periodic trigger (a cron job hitting it, or AWS
-      EventBridge) is needed before launch, the same "needs real
-      infrastructure before going live" caveat as the payment gateways.
-      Verified via curl end-to-end (create/get/cancel/staff run-due, and a
-      non-staff 403 on run-due) and visually in the app.
+      cancel) plus a `POST .../run-due` that emails everyone whose reminder
+      is due and reschedules them, triggerable either by staff/admin JWT
+      (the KYC Review screen's bell icon) or by a shared `X-Cron-Secret`
+      header (`CRON_SECRET`, checked in `get_current_user_optional` +
+      `run_due_inspection_reminders`) - the latter lets Render's
+      `midman-reminder-cron` blueprint service (`render.yaml`,
+      `backend/scripts/trigger_reminders.py`) call it daily over Render's
+      private network with no staff login of its own. Verified via curl
+      end-to-end (create/get/cancel, staff-JWT run-due, cron-secret
+      run-due, and 403 with no/wrong auth) and visually in the app.
 - [x] Home screen Reminders + Promotions: a "Reminders" section derived
       client-side from data already fetched elsewhere (no new aggregation
       endpoint) - identity verification pending/declined, free trial ending

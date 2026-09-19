@@ -5,12 +5,11 @@ Deliberately just an email nudge on the chosen schedule ("Time to book your
 next inspection"), never an auto-created request - the customer still comes
 into the app and confirms every field themselves, same as everywhere else.
 
-No cron/scheduler infra exists in this project yet, so nothing fires this
-automatically in production - see send_due_reminders() below and
-POST /reminders/property-inspection/run-due in main.py, which needs a real
-periodic trigger (e.g. a cron job hitting that endpoint, or AWS EventBridge)
-wired up before launch, the same way real Paynow/Flutterwave credentials
-are needed before payments go live.
+The Render deployment (see ../../render.yaml) runs this daily via the
+midman-reminder-cron job, which calls send_due_reminders() below through
+POST /reminders/property-inspection/run-due (scripts/trigger_reminders.py).
+Locally, or if CRON_SECRET is left unset, nothing calls it automatically -
+staff can still trigger it by hand from the KYC Review screen's bell icon.
 """
 
 from datetime import datetime, timedelta

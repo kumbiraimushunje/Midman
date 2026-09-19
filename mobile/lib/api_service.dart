@@ -360,8 +360,10 @@ class ApiService {
   }
 
   /// Staff/admin only - manually processes every due Property Inspection
-  /// reminder (emails the customer, reschedules it). Stand-in until a real
-  /// cron trigger is wired up before launch - returns how many were sent.
+  /// reminder (emails the customer, reschedules it). Render's daily cron
+  /// job calls this automatically in production (see render.yaml); this is
+  /// for an on-demand trigger from the KYC Review screen - returns how many
+  /// were sent.
   static Future<int> runDueInspectionReminders() async {
     final res = await http.post(Uri.parse('$_baseUrl/reminders/property-inspection/run-due'), headers: await _authHeaders());
     final data = _decode(res);

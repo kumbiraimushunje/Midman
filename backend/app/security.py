@@ -11,6 +11,7 @@ from .database import get_db
 from .models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 # bcrypt's own limit - reject/truncate before hashing rather than erroring deep in the C extension.
 _MAX_PASSWORD_BYTES = 72
@@ -48,3 +49,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_error
     return user
+
+
+def get_current_user_optional(token: str | None = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> User | None:
+    """Same as get_current_user, but returns None instead of raising when
+    there's no (or an invalid) bearer token - for endpoints like the
+    reminder cron trigger that also accept a non-JWT auth path."""
+    if token is None:
+        return None
+    try:
+        return get_current_user(token, db)
+    except HTTPException:
+        return None

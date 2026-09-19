@@ -8,6 +8,12 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_expire_minutes: int = 60
 
+    # Lets the Render cron job trigger POST /reminders/property-inspection/run-due
+    # without a staff login of its own - see security.get_current_user_optional
+    # and main.run_due_inspection_reminders. Leave blank and only staff/admin JWTs
+    # can trigger that endpoint (the KYC Review bell-icon button still works).
+    cron_secret: str = ""
+
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 

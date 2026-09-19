@@ -18,9 +18,10 @@ class KycReviewScreen extends StatefulWidget {
 class _KycReviewScreenState extends State<KycReviewScreen> {
   bool _sendingReminders = false;
 
-  /// Manual stand-in for the real cron trigger the Property Inspection
-  /// reminder feature still needs before launch (see app/reminders.py) -
-  /// lets staff process due reminders on demand until that's wired up.
+  /// On-demand trigger alongside Render's daily cron job (see
+  /// backend/render.yaml and app/reminders.py) - lets staff process due
+  /// Property Inspection reminders immediately instead of waiting for the
+  /// next scheduled run.
   Future<void> _runDueReminders() async {
     setState(() => _sendingReminders = true);
     try {

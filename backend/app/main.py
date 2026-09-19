@@ -3,7 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Optional
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import case, or_
@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from . import flutterwave_gateway, paynow_gateway, schemas
 from .ai_concierge import answer_support_question, compare_quotes, parse_invoice_document, parse_request_text
 from .audit import record_audit
+from .config import settings
 from .database import get_db
 from .fraud_check import run_fraud_check
 from .business_permissions import (
@@ -53,7 +54,7 @@ from .notifications import (
 )
 from .reminders import next_due_at, send_due_reminders
 from .reports import build_dashboard_report
-from .security import create_access_token, get_current_user, hash_password, verify_password
+from .security import create_access_token, get_current_user, get_current_user_optional, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
 from .uploads import UPLOAD_DIR, content_type_for, read_upload_bytes, save_upload
 
@@ -889,10 +890,19 @@ def cancel_inspection_reminder(current_user: User = Depends(get_current_user), d
 
 
 @app.post("/reminders/property-inspection/run-due")
-def run_due_inspection_reminders(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Manually processes every due reminder - stand-in until a real cron
-    trigger is wired up before launch (see reminders.py)."""
-    if current_user.role not in (UserRole.staff, UserRole.admin):
+def run_due_inspection_reminders(
+    x_cron_secret: Optional[str] = Header(default=None, alias="X-Cron-Secret"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
+    """Processes every due reminder. Staff/admin trigger this from the KYC
+    Review bell icon (JWT auth); the Render cron job (see render.yaml,
+    scripts/trigger_reminders.py) triggers it headlessly instead, since it
+    has no staff login of its own - it authenticates with X-Cron-Secret,
+    checked against CRON_SECRET, rather than a bearer token."""
+    is_cron = bool(settings.cron_secret) and x_cron_secret == settings.cron_secret
+    is_staff = current_user is not None and current_user.role in (UserRole.staff, UserRole.admin)
+    if not is_cron and not is_staff:
         raise HTTPException(403, "Staff only")
     return {"sent": send_due_reminders(db)}
 

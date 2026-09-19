@@ -14,6 +14,8 @@ services:
         sync: false
       - key: JWT_EXPIRE_MINUTES
         value: "60"
+      - key: CRON_SECRET
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
@@ -47,4 +49,27 @@ services:
       - key: FLUTTERWAVE_SECRET_KEY
         sync: false
       - key: FLUTTERWAVE_WEBHOOK_SECRET_HASH
+        sync: false
+
+  # Manual stand-in from send_due_reminders() promoted to a real periodic
+  # trigger now that the backend has a stable home to call. Hits the web
+  # service above over Render's private network (BACKEND_HOSTPORT) rather
+  # than the public internet, authenticating with CRON_SECRET since it has
+  # no staff login of its own - see app/main.py's run_due_inspection_reminders
+  # and scripts/trigger_reminders.py.
+  - type: cron
+    name: midman-reminder-cron
+    runtime: python
+    plan: starter
+    schedule: "0 6 * * *"
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python scripts/trigger_reminders.py"
+    envVars:
+      - key: BACKEND_HOSTPORT
+        fromService:
+          name: midman-backend
+          type: web
+          property: hostport
+      - key: CRON_SECRET
         sync: false
