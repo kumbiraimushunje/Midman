@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../api_service.dart';
 import '../../city_data.dart';
@@ -354,6 +355,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 decoration: InputDecoration(labelText: name),
               ),
             ],
+            if (_category == 'property_inspection') ...[
+              const SizedBox(height: 16),
+              const _InspectionReminderCard(),
+            ],
             const SizedBox(height: 16),
             if (_loadingBeneficiaries)
               const LinearProgressIndicator()
@@ -407,6 +412,161 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Optional recurring email nudge to book the next inspection - "choose
+/// timer monthly... for email reminders, optional." Self-contained: it
+/// loads and saves its own state independently of the surrounding form, so
+/// the customer can set or cancel it without needing to submit a request.
+class _InspectionReminderCard extends StatefulWidget {
+  const _InspectionReminderCard();
+
+  @override
+  State<_InspectionReminderCard> createState() => _InspectionReminderCardState();
+}
+
+class _InspectionReminderCardState extends State<_InspectionReminderCard> {
+  late Future<InspectionReminder?> _future;
+  bool _enabled = false;
+  String _frequency = 'monthly';
+  final _propertyLabelController = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<InspectionReminder?> _load() async {
+    final reminder = await ApiService.getInspectionReminder();
+    if (reminder != null && reminder.active && mounted) {
+      setState(() {
+        _enabled = true;
+        _frequency = reminder.frequency;
+        _propertyLabelController.text = reminder.propertyLabel ?? '';
+      });
+    }
+    return reminder;
+  }
+
+  @override
+  void dispose() {
+    _propertyLabelController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ApiService.setInspectionReminder(
+        frequency: _frequency,
+        propertyLabel: _propertyLabelController.text.trim().isEmpty ? null : _propertyLabelController.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder saved')));
+        setState(() => _future = _load());
+      }
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _cancel() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ApiService.cancelInspectionReminder();
+      if (mounted) setState(() => _enabled = false);
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<InspectionReminder?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final existing = snapshot.data;
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.notifications_active_outlined, size: 18, color: MidManColors.gold),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('Remind me to book my next inspection', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  Switch(value: _enabled, onChanged: _busy ? null : (v) => setState(() => _enabled = v)),
+                ],
+              ),
+              if (existing != null && existing.active && !_busy)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Next reminder: ${DateFormat('d MMM yyyy').format(existing.nextReminderAt.toLocal())}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+              if (_enabled) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _frequency,
+                  decoration: const InputDecoration(labelText: 'How often'),
+                  items: kReminderFrequencies.map((f) => DropdownMenuItem(value: f.value, child: Text(f.label))).toList(),
+                  onChanged: _busy ? null : (v) => setState(() => _frequency = v ?? _frequency),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _propertyLabelController,
+                  decoration: const InputDecoration(labelText: 'Which property? (optional)'),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(_error!, style: const TextStyle(color: MidManColors.danger, fontSize: 12)),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _busy ? null : _save,
+                        child: _busy
+                            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Save reminder'),
+                      ),
+                    ),
+                    if (existing != null && existing.active) ...[
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: _busy ? null : _cancel,
+                        child: const Text('Cancel reminder', style: TextStyle(color: MidManColors.danger)),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, ForeignKey, Numeric, DateTime, Enum, Integer, Text, Date
+from sqlalchemy import Boolean, Column, String, ForeignKey, Numeric, DateTime, Enum, Integer, Text, Date
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -26,6 +26,13 @@ class KYCStatus(str, enum.Enum):
     pending = "pending"
     verified = "verified"
     rejected = "rejected"
+
+
+class ReminderFrequency(str, enum.Enum):
+    monthly = "monthly"
+    quarterly = "quarterly"
+    biannual = "biannual"
+    annual = "annual"
 
 
 class BusinessRole(str, enum.Enum):
@@ -397,3 +404,29 @@ class AuditLog(Base):
     meta = Column(JSONB, nullable=True)  # structured before/after detail, when useful
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+class InspectionReminder(Base):
+    """A customer's opt-in recurring email nudge to book their next property
+    inspection - "Property Inspections choose timer monthly... for email
+    reminders, optional." Deliberately just an email nudge, not an
+    auto-created request: it links back into the app so the customer still
+    reviews and confirms every field themselves, same as everywhere else in
+    MidMan a request gets created.
+
+    One active reminder per user for now (a second POST just updates this
+    row) - see app/reminders.py for the frequency -> interval mapping and
+    the send loop that advances next_reminder_at after each email."""
+
+    __tablename__ = "inspection_reminders"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+
+    frequency = Column(Enum(ReminderFrequency), nullable=False)
+    property_label = Column(String, nullable=True)  # optional free-text, e.g. "Borrowdale rental"
+    next_reminder_at = Column(DateTime, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_sent_at = Column(DateTime, nullable=True)

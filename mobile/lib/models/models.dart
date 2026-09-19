@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart' show IconData, Icons;
+
 class DashboardReport {
   final int totalRequests;
   final int totalCustomers;
@@ -263,6 +265,46 @@ class Company {
         kycStatus: json['kyc_status'],
         kycRejectionReason: json['kyc_rejection_reason'],
         createdAt: DateTime.parse(json['created_at']),
+      );
+}
+
+class ReminderFrequencyOption {
+  final String value;
+  final String label;
+  const ReminderFrequencyOption(this.value, this.label);
+}
+
+const kReminderFrequencies = [
+  ReminderFrequencyOption('monthly', 'Monthly'),
+  ReminderFrequencyOption('quarterly', 'Every 3 months'),
+  ReminderFrequencyOption('biannual', 'Every 6 months'),
+  ReminderFrequencyOption('annual', 'Yearly'),
+];
+
+String reminderFrequencyLabel(String value) =>
+    kReminderFrequencies.firstWhere((f) => f.value == value, orElse: () => ReminderFrequencyOption(value, value)).label;
+
+class InspectionReminder {
+  final String id;
+  final String frequency;
+  final String? propertyLabel;
+  final DateTime nextReminderAt;
+  final bool active;
+
+  InspectionReminder({
+    required this.id,
+    required this.frequency,
+    this.propertyLabel,
+    required this.nextReminderAt,
+    required this.active,
+  });
+
+  factory InspectionReminder.fromJson(Map<String, dynamic> json) => InspectionReminder(
+        id: json['id'],
+        frequency: json['frequency'],
+        propertyLabel: json['property_label'],
+        nextReminderAt: DateTime.parse(json['next_reminder_at']),
+        active: json['active'],
       );
 }
 
@@ -648,8 +690,9 @@ class ServiceGroup {
   final String label;
   final List<ServiceCategoryOption> categories;
   final String? descriptionHint; // shown as the Details field's hint for every category in this group
+  final IconData icon; // shown on the Home screen's group card, in place of the plain number badge
 
-  const ServiceGroup(this.number, this.label, this.categories, {this.descriptionHint});
+  const ServiceGroup(this.number, this.label, this.categories, {this.descriptionHint, required this.icon});
 }
 
 const kServiceGroups = [
@@ -677,7 +720,7 @@ const kServiceGroups = [
       'Stationery',
       'Other Education-Related Expenses',
     ]),
-  ]),
+  ], icon: Icons.family_restroom),
   ServiceGroup('2', 'Documents & Administration', [
     ServiceCategoryOption('document_collection', 'Document Collection', 'Collecting documents on your behalf', serviceTypes: [
       'Document Collection',
@@ -696,7 +739,7 @@ const kServiceGroups = [
           "collection). Anything requiring a licensed professional (e.g. a lawyer) or Power of "
           "Attorney isn't covered here and needs separate arrangement.",
     ),
-  ]),
+  ], icon: Icons.description_outlined),
   ServiceGroup('3', 'Property Management & Home Services', [
     ServiceCategoryOption('property_inspection', 'Property Inspections', 'Condition reports, utility coordination', serviceTypes: [
       'Condition Reporting',
@@ -725,7 +768,7 @@ const kServiceGroups = [
       'Deep Cleaning',
       'Move-In / Move-Out',
     ]),
-  ]),
+  ], icon: Icons.home_work_outlined),
   ServiceGroup('4', 'Procurement & Shopping', [
     ServiceCategoryOption('building_materials', 'Building Materials', 'Cement, bricks, steel, hardware', serviceTypes: [
       'Cement',
@@ -748,7 +791,7 @@ const kServiceGroups = [
       'Other Approved Products',
     ]),
     ServiceCategoryOption('procurement', 'Other', 'General procurement', serviceTypes: ['General Procurement']),
-  ]),
+  ], icon: Icons.shopping_cart_outlined),
   ServiceGroup(
     '5',
     'Gifts & Celebrations',
@@ -788,6 +831,7 @@ const kServiceGroups = [
       ]),
     ],
     descriptionHint: 'e.g. Cake, Flowers, Gift, Delivery, Personalized Card, Personalised hoodies/tshirts',
+    icon: Icons.card_giftcard_outlined,
   ),
   ServiceGroup('6', 'Transportation & Mobility', [
     ServiceCategoryOption(
@@ -797,7 +841,7 @@ const kServiceGroups = [
       serviceTypes: ['Airport Drop off', 'Airport Pick up'],
       extraFields: ['Airport', 'Flight number', 'Passenger', 'Arrival time', 'Destination'],
     ),
-  ]),
+  ], icon: Icons.flight_outlined),
   ServiceGroup('7', 'Other', [
     ServiceCategoryOption('personal_concierge', 'Personal Concierge/Errands', 'Collections, deliveries, local errands', serviceTypes: [
       'Collections',
@@ -807,7 +851,7 @@ const kServiceGroups = [
       'Local Errands',
       'Personal Administration',
     ]),
-  ]),
+  ], icon: Icons.miscellaneous_services_outlined),
 ];
 
 /// Flattened list of every category across every group - for places that

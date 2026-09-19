@@ -336,6 +336,29 @@ class ApiService {
     _decode(res);
   }
 
+  // ---------- Property inspection reminders ----------
+
+  /// null if the customer has never set one up.
+  static Future<InspectionReminder?> getInspectionReminder() async {
+    final res = await http.get(Uri.parse('$_baseUrl/reminders/property-inspection'), headers: await _authHeaders());
+    final data = _decode(res);
+    return data == null ? null : InspectionReminder.fromJson(data);
+  }
+
+  static Future<InspectionReminder> setInspectionReminder({required String frequency, String? propertyLabel}) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/reminders/property-inspection'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'frequency': frequency, 'property_label': propertyLabel}),
+    );
+    return InspectionReminder.fromJson(_decode(res));
+  }
+
+  static Future<void> cancelInspectionReminder() async {
+    final res = await http.delete(Uri.parse('$_baseUrl/reminders/property-inspection'), headers: await _authHeaders());
+    _decode(res);
+  }
+
   /// Admin only - the full user directory, optionally filtered by [role] or a
   /// name/email/member-id [search] substring. Deactivated accounts are
   /// excluded unless [includeInactive] is set.

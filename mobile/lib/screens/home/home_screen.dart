@@ -1,11 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import '../account/subscription_screen.dart';
 import '../requests/category_picker_screen.dart';
 import '../requests/new_request_screen.dart';
+import '../requests/request_detail_screen.dart';
+import '../requests/requests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,11 +23,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _parsing = false;
   String? _error;
   String? _firstName;
+  late Future<List<_HomeReminder>> _remindersFuture;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _remindersFuture = _loadReminders();
   }
 
   Future<void> _loadUser() async {
@@ -33,6 +39,79 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       // Non-fatal - the greeting just falls back to a generic one.
     }
+  }
+
+  /// Reminders are derived client-side from data already fetched elsewhere
+  /// in the app (account status, requests, the inspection reminder
+  /// subscription) rather than a dedicated backend aggregation endpoint -
+  /// each piece failing independently (caught below) just drops that one
+  /// reminder instead of blocking the whole section.
+  Future<List<_HomeReminder>> _loadReminders() async {
+    final reminders = <_HomeReminder>[];
+
+    try {
+      final user = await ApiService.me();
+      if (user.kycStatus != 'verified') {
+        reminders.add(_HomeReminder(
+          icon: Icons.badge_outlined,
+          text: user.kycStatus == 'rejected'
+              ? 'Your identity verification was declined - upload a new document'
+              : 'Verify your identity to get the most out of MidMan',
+          color: MidManColors.warning,
+        ));
+      }
+      if (user.isOnTrial && user.trialEndsAt!.difference(DateTime.now()).inDays <= 7) {
+        final days = user.trialEndsAt!.difference(DateTime.now()).inDays;
+        reminders.add(_HomeReminder(
+          icon: Icons.hourglass_bottom_outlined,
+          text: days <= 0 ? 'Your free trial ends today - choose a plan' : 'Your free trial ends in $days day${days == 1 ? '' : 's'}',
+          color: MidManColors.warning,
+          onTap: (context) => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType))),
+        ));
+      }
+    } catch (_) {
+      // Non-fatal.
+    }
+
+    try {
+      final requests = await ApiService.myRequests();
+      final pendingRequests = requests.where((r) => r.status == 'payment_pending').toList();
+      if (pendingRequests.isNotEmpty) {
+        final pending = pendingRequests.length;
+        reminders.add(_HomeReminder(
+          icon: Icons.payments_outlined,
+          text: '$pending request${pending == 1 ? '' : 's'} awaiting payment',
+          color: MidManColors.gold,
+          // Jumps straight to the request if there's exactly one, otherwise the
+          // customer picks which from Requests - RequestsScreen has no Scaffold
+          // of its own (it's normally a HomeShell tab body), so it can't be
+          // pushed as a standalone route without one.
+          onTap: (context) => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => pending == 1
+                ? RequestDetailScreen(requestId: pendingRequests.first.id)
+                : const Scaffold(body: RequestsScreen()),
+          )),
+        ));
+      }
+    } catch (_) {
+      // Non-fatal.
+    }
+
+    try {
+      final reminder = await ApiService.getInspectionReminder();
+      if (reminder != null && reminder.active) {
+        reminders.add(_HomeReminder(
+          icon: Icons.notifications_active_outlined,
+          text: 'Next property inspection reminder: ${DateFormat('d MMM yyyy').format(reminder.nextReminderAt.toLocal())}',
+          color: MidManColors.gold,
+        ));
+      }
+    } catch (_) {
+      // Non-fatal.
+    }
+
+    return reminders;
   }
 
   @override
@@ -171,6 +250,26 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          FutureBuilder<List<_HomeReminder>>(
+            future: _remindersFuture,
+            builder: (context, snapshot) {
+              final reminders = snapshot.data ?? const [];
+              if (reminders.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Reminders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    ...reminders.map((r) => _ReminderTile(reminder: r)),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          const _PromotionsCarousel(),
           const SizedBox(height: 24),
           const Text('Services', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
@@ -224,16 +323,104 @@ class _ServiceGroupCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 24,
-              height: 24,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: const BoxDecoration(color: MidManColors.gold, shape: BoxShape.circle),
-              child: Text(group.number, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 12)),
+              child: Icon(group.icon, color: Colors.black, size: 20),
             ),
             const SizedBox(height: 8),
             Text(group.label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HomeReminder {
+  final IconData icon;
+  final String text;
+  final Color color;
+  final void Function(BuildContext context)? onTap;
+
+  _HomeReminder({required this.icon, required this.text, required this.color, this.onTap});
+}
+
+class _ReminderTile extends StatelessWidget {
+  final _HomeReminder reminder;
+  const _ReminderTile({required this.reminder});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: reminder.onTap == null ? null : () => reminder.onTap!(context),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              Icon(reminder.icon, size: 20, color: reminder.color),
+              const SizedBox(width: 12),
+              Expanded(child: Text(reminder.text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+              if (reminder.onTap != null) const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Promotion {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  const _Promotion({required this.title, required this.subtitle, required this.icon});
+}
+
+// TODO: placeholder marketing copy - swap for real campaigns/pricing before
+// launch, same pattern as account_screen.dart's support contact details.
+// Static for now since there's no promotions backend yet; kept as its own
+// small carousel widget so it's a drop-in swap for one later.
+const _kPromotions = [
+  _Promotion(title: 'Refer a friend', subtitle: 'Give a friend MidMan, get a reward when they join', icon: Icons.people_alt_outlined),
+  _Promotion(title: 'Go Pro', subtitle: 'Priority service and free digital assistance', icon: Icons.workspace_premium_outlined),
+  _Promotion(title: 'Try the AI concierge', subtitle: 'Just describe what you need - we\'ll fill in the rest', icon: Icons.auto_awesome_outlined),
+];
+
+class _PromotionsCarousel extends StatelessWidget {
+  const _PromotionsCarousel();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 130,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _kPromotions.length,
+        separatorBuilder: (_, index) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final promo = _kPromotions[i];
+          return Container(
+            width: 240,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: MidManColors.ink, borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(promo.icon, color: MidManColors.gold, size: 22),
+                const SizedBox(height: 8),
+                Text(promo.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(promo.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

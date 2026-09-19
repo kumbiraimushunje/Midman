@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +33,7 @@ from .models import (
     CompanyDocument,
     Evidence,
     EvidenceType,
+    InspectionReminder,
     KYCStatus,
     Payment,
     PaymentProvider,
@@ -49,6 +51,7 @@ from .notifications import (
     notify_payment_received,
     notify_status_change,
 )
+from .reminders import next_due_at, send_due_reminders
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, hash_password, verify_password
 from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
@@ -841,6 +844,57 @@ def dashboard_report(current_user: User = Depends(get_current_user), db: Session
     if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
         raise HTTPException(403, "Staff only")
     return build_dashboard_report(db)
+
+
+# ---------- Property inspection reminders ----------
+
+@app.get("/reminders/property-inspection", response_model=Optional[schemas.InspectionReminderOut])
+def get_inspection_reminder(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(InspectionReminder).filter(InspectionReminder.user_id == current_user.id).first()
+
+
+@app.post("/reminders/property-inspection", response_model=schemas.InspectionReminderOut)
+def set_inspection_reminder(
+    payload: schemas.InspectionReminderCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upserts the customer's single recurring reminder - optional, set from
+    the New Request form when the Property Inspections category is picked."""
+    reminder = db.query(InspectionReminder).filter(InspectionReminder.user_id == current_user.id).first()
+    if reminder is None:
+        reminder = InspectionReminder(
+            user_id=current_user.id,
+            frequency=payload.frequency,
+            property_label=payload.property_label,
+            next_reminder_at=next_due_at(payload.frequency),
+        )
+        db.add(reminder)
+    else:
+        reminder.frequency = payload.frequency
+        reminder.property_label = payload.property_label
+        reminder.next_reminder_at = next_due_at(payload.frequency)
+        reminder.active = True
+    db.commit()
+    db.refresh(reminder)
+    return reminder
+
+
+@app.delete("/reminders/property-inspection", status_code=204)
+def cancel_inspection_reminder(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    reminder = db.query(InspectionReminder).filter(InspectionReminder.user_id == current_user.id).first()
+    if reminder is not None:
+        reminder.active = False
+        db.commit()
+
+
+@app.post("/reminders/property-inspection/run-due")
+def run_due_inspection_reminders(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Manually processes every due reminder - stand-in until a real cron
+    trigger is wired up before launch (see reminders.py)."""
+    if current_user.role not in (UserRole.staff, UserRole.admin):
+        raise HTTPException(403, "Staff only")
+    return {"sent": send_due_reminders(db)}
 
 
 # ---------- KYC review ----------

@@ -87,6 +87,19 @@ def notify_company_kyc_decision(company: Company, approved: bool, reason: str | 
     _send(company.email, subject, body)
 
 
+def notify_inspection_reminder(user: User, property_label: str | None) -> None:
+    subject = "Time to book your next property inspection"
+    where = f" for {property_label}" if property_label else ""
+    body = (
+        f"Hi {user.full_name},\n\n"
+        f"This is your reminder to book a property inspection{where}. "
+        "Open the MidMan app and request one under Property Management & Home "
+        "Services whenever you're ready - we'll take it from there.\n\n"
+        "MidMan"
+    )
+    _send(user.email, subject, body)
+
+
 def _send(to_email: str, subject: str, body: str) -> None:
     if not settings.smtp_host:
         logger.info("[email skipped - no SMTP configured] To: %s | %s\n%s", to_email, subject, body)

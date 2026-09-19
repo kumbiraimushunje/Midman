@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 
 from .city_availability import categories_available_in
-from .models import AccountType, BusinessRole, KYCStatus, PaymentProvider, PaymentStatus, RequestStatus, ServiceCategory, UserRole
+from .models import AccountType, BusinessRole, KYCStatus, PaymentProvider, PaymentStatus, ReminderFrequency, RequestStatus, ServiceCategory, UserRole
 from .service_taxonomy import SERVICE_TYPES_BY_CATEGORY
 from .uploads import resolve_file_url
 
@@ -142,6 +142,21 @@ class CompanyKYCReviewOut(BaseModel):
 class CompanyKYCDecisionRequest(BaseModel):
     approve: bool
     reason: Optional[str] = None
+
+
+class InspectionReminderCreate(BaseModel):
+    frequency: ReminderFrequency
+    property_label: Optional[str] = None
+
+
+class InspectionReminderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    frequency: ReminderFrequency
+    property_label: Optional[str] = None
+    next_reminder_at: datetime
+    active: bool
 
 
 class CompanyDocumentOut(BaseModel):

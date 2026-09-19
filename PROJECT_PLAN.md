@@ -347,6 +347,51 @@ updates, evidence, and fraud-risk flags visible before approving.
       request detail screens. Verified via curl: country defaults
       correctly when omitted, an explicit country/city round-trips
       correctly, and the availability validator runs without error.
+- [x] Service group icons: the numbered gold badges on Home's Services
+      grid ("1", "2", ...) were replaced with relatable Material icons per
+      group (family icon for Family Care & Shopping, a document for
+      Documents & Administration, a house for Property Management, a
+      shopping cart for Procurement, a gift for Gifts & Celebrations, a
+      plane for Transportation & Mobility, etc) - `ServiceGroup` gained a
+      required `icon` field alongside the existing `number`.
+- [x] Property Inspection reminders: an optional recurring email nudge -
+      "choose timer monthly... for email reminders, optional" - deliberately
+      just an email ("time to book your next inspection"), never an
+      auto-created request. `InspectionReminder` (one active row per user,
+      `app/models.py`) with a fixed frequency (monthly/quarterly/biannual/
+      annual, `app/reminders.py` maps each to an interval) and an optional
+      free-text property label. Set from a self-contained card on the New
+      Request form when Property Inspections is picked - toggle on, choose
+      frequency, "Save reminder" - independent of actually submitting a
+      request. `GET/POST/DELETE /reminders/property-inspection` (upsert +
+      cancel) plus a staff/admin-only `POST .../run-due` that emails
+      everyone whose reminder is due and reschedules them - there's no
+      cron/scheduler in this project yet, so nothing calls that
+      automatically; a real periodic trigger (a cron job hitting it, or AWS
+      EventBridge) is needed before launch, the same "needs real
+      infrastructure before going live" caveat as the payment gateways.
+      Verified via curl end-to-end (create/get/cancel/staff run-due, and a
+      non-staff 403 on run-due) and visually in the app.
+- [x] Home screen Reminders + Promotions: a "Reminders" section derived
+      client-side from data already fetched elsewhere (no new aggregation
+      endpoint) - identity verification pending/declined, free trial ending
+      within 7 days (links to the Membership screen), any request(s)
+      awaiting payment (jumps straight to that request's detail screen when
+      there's exactly one, otherwise to the Requests list), and the next
+      property inspection reminder date if one's active. Each source fails
+      independently (caught separately) so one broken piece never blocks
+      the others, and the whole section hides itself when there's nothing
+      to show. Below it, a "Promotions" carousel of MidMan's own static
+      marketing banners (Refer a friend / Go Pro / Try the AI concierge) -
+      TODO-flagged placeholder copy, same pattern as the support contact
+      details, ready to swap for a real backend-driven campaigns feed
+      later. Caught and fixed in testing: the payment-due reminder
+      originally pushed `RequestsScreen` as a standalone route, but that
+      screen has no `Scaffold` of its own (it's normally a HomeShell tab
+      body) and crashed with a "no Material ancestor" error - fixed by
+      routing to the specific request's own detail screen instead (which
+      has a proper Scaffold/AppBar), falling back to a Scaffold-wrapped
+      RequestsScreen only when there's more than one pending request.
 
 ### Phase 8 — Launch
 iOS build via CI (Codemagic or GitHub Actions macOS runner — this dev
