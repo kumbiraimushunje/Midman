@@ -1,18 +1,23 @@
+import 'models/models.dart' show kServiceCategories;
+
 /// Which service categories are offered in which city - mirrors
 /// backend/app/city_availability.py by hand, keep both in sync.
 ///
 /// Only Zimbabwe has cities modeled for now - Harare, Bulawayo and Mutare.
-/// Every category defaults to available in all 3; edit a city's list here
-/// (and the matching one server-side) to restrict it once some services
-/// aren't actually offered everywhere.
+/// Harare (the capital, MidMan's main hub) offers every active category;
+/// Bulawayo and Mutare don't yet have the logistics/partner network for
+/// Airport Transfers (transportation), Building Materials, or Property
+/// Cleaning, so those stay Harare-only until that changes.
 const kZimbabweCities = ['Harare', 'Bulawayo', 'Mutare'];
+
+const _notYetOutsideHarare = ['transportation', 'building_materials', 'property_cleaning'];
 
 /// null means "every active category" - used for a city not in this map
 /// (or no city selected), so unfiltered until told otherwise.
-const Map<String, List<String>?> kCityAvailableCategories = {
+final Map<String, List<String>?> kCityAvailableCategories = {
   'Harare': null,
-  'Bulawayo': null,
-  'Mutare': null,
+  'Bulawayo': kServiceCategories.map((c) => c.value).where((v) => !_notYetOutsideHarare.contains(v)).toList(),
+  'Mutare': kServiceCategories.map((c) => c.value).where((v) => !_notYetOutsideHarare.contains(v)).toList(),
 };
 
 List<String>? categoriesAvailableInCity(String? city) {
