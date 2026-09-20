@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../api_service.dart';
 import '../../city_data.dart';
-import '../../country_data.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
 
@@ -46,7 +45,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   String? _category;
   String? _serviceType;
   String? _beneficiaryId;
-  String? _country;
   String? _city;
   List<Beneficiary> _beneficiaries = [];
   bool _loading = false;
@@ -58,17 +56,17 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   ServiceCategoryOption? get _categoryOption => _category == null ? null : findServiceCategory(_category!);
   ServiceGroup? get _group => _category == null ? null : findGroupForCategory(_category!);
 
-  /// City selection only restricts which categories show up for Zimbabwe,
-  /// the only country with cities modeled right now (see city_data.dart) -
-  /// every other country still sees the full active taxonomy unfiltered.
+  /// Which categories show up depends on the chosen city (see city_data.dart) -
+  /// every city currently allows every active category, but the request-
+  /// creation endpoint enforces whatever city_availability.py lists, so this
+  /// stays ready for cities to actually differ once that's populated.
   List<ServiceCategoryOption> get _availableCategories {
     final allowed = categoriesAvailableInCity(_city);
     if (allowed == null) return kServiceCategories;
     return kServiceCategories.where((c) => allowed.contains(c.value)).toList();
   }
 
-  bool get _cityRequired => _country == 'Zimbabwe';
-  bool get _readyToPickCategory => !_cityRequired || _city != null;
+  bool get _readyToPickCategory => _city != null;
 
   @override
   void initState() {
@@ -92,25 +90,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Future<void> _loadMe() async {
     try {
       final me = await ApiService.me();
-      if (mounted) {
-        setState(() {
-          _me = me;
-          _country ??= me.countryOfResidence;
-        });
-      }
+      if (mounted) setState(() => _me = me);
     } catch (_) {
       // Non-fatal - if this fails the server still enforces the rule on submit.
     }
-  }
-
-  void _onCountryChanged(String? value) {
-    setState(() {
-      _country = value;
-      if (!_cityRequired) _city = null;
-      _category = null;
-      _serviceType = null;
-      _syncExtraFieldControllers();
-    });
   }
 
   void _onCityChanged(String? value) {
@@ -189,8 +172,8 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   }
 
   Future<void> _submit() async {
-    if (_category == null || _titleController.text.trim().isEmpty) {
-      setState(() => _error = 'Please choose a category and a short title');
+    if (_city == null || _category == null || _titleController.text.trim().isEmpty) {
+      setState(() => _error = 'Please choose a city, a category and a short title');
       return;
     }
     setState(() {
@@ -199,7 +182,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     });
     try {
       final request = await ApiService.createServiceRequest(
-        country: _country,
         city: _city,
         category: _category!,
         serviceType: _serviceType,
@@ -293,22 +275,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               const SizedBox(height: 16),
             ],
             DropdownButtonFormField<String>(
-              initialValue: _country,
-              decoration: const InputDecoration(labelText: 'Country'),
-              isExpanded: true,
-              items: kCountries.map((c) => DropdownMenuItem(value: c.name, child: Text('${c.flag} ${c.name}'))).toList(),
-              onChanged: _onCountryChanged,
+              initialValue: _city,
+              decoration: const InputDecoration(labelText: 'City'),
+              hint: const Text('Choose a city to see what\'s available there'),
+              items: kZimbabweCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: _onCityChanged,
             ),
-            if (_cityRequired) ...[
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _city,
-                decoration: const InputDecoration(labelText: 'City'),
-                hint: const Text('Choose a city to see what\'s available there'),
-                items: kZimbabweCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: _onCityChanged,
-              ),
-            ],
             const SizedBox(height: 16),
             if (_readyToPickCategory)
               DropdownButtonFormField<String>(
