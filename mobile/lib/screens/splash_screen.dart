@@ -64,7 +64,7 @@ class SplashScreen extends StatelessWidget {
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
                     },
-                    child: const Text('Get Started  →', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('Login  →', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(height: 40),
