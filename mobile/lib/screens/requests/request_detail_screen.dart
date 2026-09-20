@@ -16,6 +16,7 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   late Future<ServiceRequest?> _future;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -29,62 +30,105 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         _future = _load();
       });
 
+  Future<void> _confirmDelete(ServiceRequest req) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this request?'),
+        content: Text('"${req.title}" (${req.requestNumber}) will be permanently removed. This can\'t be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: MidManColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _deleting = true);
+    try {
+      await ApiService.deleteRequest(req.id);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _deleting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Order Tracking')),
-      body: SafeArea(
-        child: FutureBuilder<ServiceRequest?>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final req = snapshot.data;
-            if (req == null) return const Center(child: Text('Request not found'));
+    return FutureBuilder<ServiceRequest?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final req = snapshot.data;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Order Tracking'),
+            actions: [
+              if (req != null && req.status == 'requested')
+                IconButton(
+                  tooltip: 'Delete request',
+                  icon: _deleting
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.delete_outline),
+                  onPressed: _deleting ? null : () => _confirmDelete(req),
+                ),
+            ],
+          ),
+          body: SafeArea(
+            child: Builder(builder: (context) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (req == null) return const Center(child: Text('Request not found'));
 
-            return ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(req.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(req.requestNumber, style: const TextStyle(color: Colors.grey)),
-                if (req.serviceType != null) ...[
+              return ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(req.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(req.serviceType!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                ],
-                if (req.city != null || req.country != null) ...[
-                  const SizedBox(height: 4),
-                  Text([req.city, req.country].where((s) => s != null).join(', '),
-                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                ],
-                if (req.amount != null) ...[
-                  const SizedBox(height: 8),
-                  Text('${req.currency} ${req.amount}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ],
-                if (req.fraudRiskLevel != null) ...[
-                  const SizedBox(height: 12),
-                  Chip(label: Text('Risk: ${req.fraudRiskLevel}')),
-                ],
-                if (req.status == 'payment_pending') ...[
-                  const SizedBox(height: 20),
-                  _PaymentSection(request: req, onPaid: _reload),
-                ],
-                const SizedBox(height: 24),
-                const Text('Timeline', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                ...req.events.map((e) => _TimelineTile(event: e)),
-                if (req.evidence.isNotEmpty) ...[
+                  Text(req.requestNumber, style: const TextStyle(color: Colors.grey)),
+                  if (req.serviceType != null) ...[
+                    const SizedBox(height: 4),
+                    Text(req.serviceType!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                  if (req.city != null || req.country != null) ...[
+                    const SizedBox(height: 4),
+                    Text([req.city, req.country].where((s) => s != null).join(', '),
+                        style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
+                  if (req.amount != null) ...[
+                    const SizedBox(height: 8),
+                    Text('${req.currency} ${req.amount}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ],
+                  if (req.fraudRiskLevel != null) ...[
+                    const SizedBox(height: 12),
+                    Chip(label: Text('Risk: ${req.fraudRiskLevel}')),
+                  ],
+                  if (req.status == 'payment_pending') ...[
+                    const SizedBox(height: 20),
+                    _PaymentSection(request: req, onPaid: _reload),
+                  ],
                   const SizedBox(height: 24),
-                  const Text('Evidence & documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text('Timeline', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  ...req.evidence.map((e) => _EvidenceTile(evidence: e)),
+                  ...req.events.map((e) => _TimelineTile(event: e)),
+                  if (req.evidence.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    const Text('Evidence & documents', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    ...req.evidence.map((e) => _EvidenceTile(evidence: e)),
+                  ],
                 ],
-              ],
-            );
-          },
-        ),
-      ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }

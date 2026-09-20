@@ -476,6 +476,32 @@ def get_request(
     return req
 
 
+@app.delete("/service-requests/{request_id}", status_code=204)
+def delete_request(
+    request_id,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lets a customer remove a request they raised by mistake. Only while
+    it's still in the initial 'requested' stage - once staff have started
+    arranging it, approval/payment/completion records depend on it existing,
+    so from there on the customer can only wait it out or ask staff to
+    reject it. Hard-deletes the row (events/evidence/payments cascade) since
+    there's nothing worth keeping for a request nobody ever acted on."""
+    req = _get_request_or_404(request_id, db)
+    if req.requester_id != current_user.id:
+        raise HTTPException(403, "Not your request")
+    if req.status != RequestStatus.requested:
+        raise HTTPException(400, "This request is already being processed and can no longer be deleted")
+    record_audit(
+        db, current_user, "request.delete", "service_request",
+        f"{current_user.full_name} deleted request {req.request_number} ({req.title})",
+        entity_id=req.id,
+    )
+    db.delete(req)
+    db.commit()
+
+
 @app.post("/service-requests/{request_id}/evidence", response_model=schemas.EvidenceOut, status_code=201)
 async def upload_evidence(
     request_id,

@@ -522,6 +522,13 @@ class ApiService {
     return ServiceRequest.fromJson(_decode(res));
   }
 
+  /// Only works while the request is still in the initial 'requested' stage
+  /// - the backend rejects it once staff have started arranging it.
+  static Future<void> deleteRequest(String id) async {
+    final res = await http.delete(Uri.parse('$_baseUrl/service-requests/$id'), headers: await _authHeaders());
+    _decode(res);
+  }
+
   /// Starts a payment attempt on an approved (payment_pending) request.
   /// [provider] is 'paynow' or 'flutterwave'. [method]/[phone] are for
   /// Paynow's EcoCash/OneMoney express checkout only - omit both for the
