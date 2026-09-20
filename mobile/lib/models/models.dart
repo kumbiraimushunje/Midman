@@ -732,7 +732,7 @@ const kServiceGroups = [
     ]),
     ServiceCategoryOption(
       'government_errands',
-      'Government & Administrative Errands',
+      'Administrative Errands',
       'Application follow-ups, certificate collection',
       serviceTypes: ['Application Follow-ups', 'Certificate Collection'],
       notice: "MidMan provides ordinary administrative assistance only (queuing, form submission, "
@@ -768,8 +768,6 @@ const kServiceGroups = [
       'Deep Cleaning',
       'Move-In / Move-Out',
     ]),
-  ], icon: Icons.home_work_outlined),
-  ServiceGroup('4', 'Procurement & Shopping', [
     ServiceCategoryOption('building_materials', 'Building Materials', 'Cement, bricks, steel, hardware', serviceTypes: [
       'Cement',
       'Bricks',
@@ -791,9 +789,9 @@ const kServiceGroups = [
       'Other Approved Products',
     ]),
     ServiceCategoryOption('procurement', 'Other', 'General procurement', serviceTypes: ['General Procurement']),
-  ], icon: Icons.shopping_cart_outlined),
+  ], icon: Icons.home_work_outlined),
   ServiceGroup(
-    '5',
+    '4',
     'Gifts & Celebrations',
     [
       ServiceCategoryOption('birthday_gifts', 'Birthday Gifts', 'Cake, flowers, gifts, event coordination', serviceTypes: [
@@ -833,7 +831,7 @@ const kServiceGroups = [
     descriptionHint: 'e.g. Cake, Flowers, Gift, Delivery, Personalized Card, Personalised hoodies/tshirts',
     icon: Icons.card_giftcard_outlined,
   ),
-  ServiceGroup('6', 'Transportation & Mobility', [
+  ServiceGroup('5', 'Transportation & Mobility', [
     ServiceCategoryOption(
       'transportation',
       'Airport Transfers',
@@ -842,7 +840,7 @@ const kServiceGroups = [
       extraFields: ['Airport', 'Flight number', 'Passenger', 'Arrival time', 'Destination'],
     ),
   ], icon: Icons.flight_outlined),
-  ServiceGroup('7', 'Other', [
+  ServiceGroup('6', 'Other', [
     ServiceCategoryOption('personal_concierge', 'Personal Concierge/Errands', 'Collections, deliveries, local errands', serviceTypes: [
       'Collections',
       'Deliveries',

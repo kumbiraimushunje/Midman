@@ -51,7 +51,7 @@ SERVICE_GROUPS = [
             {"value": "document_delivery", "label": "Document Delivery", "service_types": ["Document Submission", "Other"]},
             {
                 "value": "government_errands",
-                "label": "Government & Administrative Errands",
+                "label": "Administrative Errands",
                 "service_types": ["Application Follow-ups", "Certificate Collection"],
                 "notice": (
                     "MidMan provides ordinary administrative assistance only (queuing, form "
@@ -91,11 +91,6 @@ SERVICE_GROUPS = [
                 "service_types": ["Move-in/Move-out Inspections", "Key Collection", "Key Handover"],
             },
             {"value": "property_cleaning", "label": "Property Cleaning", "service_types": ["Deep Cleaning", "Move-In / Move-Out"]},
-        ],
-    },
-    {
-        "label": "Procurement & Shopping",
-        "categories": [
             {
                 "value": "building_materials",
                 "label": "Building Materials",
