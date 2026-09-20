@@ -31,7 +31,7 @@ class RoleHomeShell extends StatelessWidget {
           return const AdminHomeShell();
         }
         if (role != null && _staffRoles.contains(role)) {
-          return const StaffHomeShell();
+          return StaffHomeShell(role: role);
         }
         return const HomeShell();
       },

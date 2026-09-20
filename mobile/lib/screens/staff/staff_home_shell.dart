@@ -7,7 +7,8 @@ import 'staff_approvals_screen.dart';
 import 'staff_queue_screen.dart';
 
 class StaffHomeShell extends StatefulWidget {
-  const StaffHomeShell({super.key});
+  final String role; // 'staff' or 'approver'
+  const StaffHomeShell({super.key, required this.role});
 
   @override
   State<StaffHomeShell> createState() => _StaffHomeShellState();
@@ -16,13 +17,28 @@ class StaffHomeShell extends StatefulWidget {
 class _StaffHomeShellState extends State<StaffHomeShell> {
   int _index = 0;
 
-  final _screens = const [
-    StaffQueueScreen(),
-    StaffApprovalsScreen(),
-    KycReviewScreen(),
-    ReportsScreen(),
-    AccountScreen(),
-  ];
+  /// Plain 'staff' gets a reduced Queue/Reports/Account shell for now -
+  /// Approvals and KYC review stay approver-only until staff picks those
+  /// up too.
+  bool get _isPlainStaff => widget.role == 'staff';
+
+  List<Widget> get _screens => _isPlainStaff
+      ? const [StaffQueueScreen(), ReportsScreen(), AccountScreen()]
+      : const [StaffQueueScreen(), StaffApprovalsScreen(), KycReviewScreen(), ReportsScreen(), AccountScreen()];
+
+  List<BottomNavigationBarItem> get _items => _isPlainStaff
+      ? const [
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Queue'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reports'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
+        ]
+      : const [
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Queue'),
+          BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'Approvals'),
+          BottomNavigationBarItem(icon: Icon(Icons.badge_outlined), label: 'KYC'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reports'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
+        ];
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +48,7 @@ class _StaffHomeShellState extends State<StaffHomeShell> {
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Queue'),
-          BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'Approvals'),
-          BottomNavigationBarItem(icon: Icon(Icons.badge_outlined), label: 'KYC'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reports'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
-        ],
+        items: _items,
       ),
     );
   }
