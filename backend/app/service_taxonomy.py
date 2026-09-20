@@ -18,7 +18,7 @@ this change stay valid; new requests never use them again.
 
 SERVICE_GROUPS = [
     {
-        "label": "Family Care & Shopping",
+        "label": "Family Care & Child Support",
         "categories": [
             {
                 "value": "groceries",

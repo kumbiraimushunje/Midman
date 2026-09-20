@@ -1,6 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../api_service.dart';
 import '../../models/models.dart';
@@ -20,7 +22,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _promptController = TextEditingController();
+  final _speech = stt.SpeechToText();
   bool _parsing = false;
+  bool _listening = false;
   String? _error;
   String? _firstName;
   late Future<List<_HomeReminder>> _remindersFuture;
@@ -117,7 +121,50 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _promptController.dispose();
+    _speech.cancel();
     super.dispose();
+  }
+
+  /// Lazily initializes speech_to_text on first tap (rather than in
+  /// initState) so the mic/speech-recognition permission prompt only
+  /// appears once the customer actually asks to speak, not on page load.
+  Future<void> _toggleListening() async {
+    if (_listening) {
+      await _speech.stop();
+      if (mounted) setState(() => _listening = false);
+      return;
+    }
+    final available = await _speech.initialize(
+      onError: (SpeechRecognitionError error) {
+        if (mounted) {
+          setState(() {
+            _listening = false;
+            _error = 'Voice input error: ${error.errorMsg}';
+          });
+        }
+      },
+      onStatus: (status) {
+        if ((status == 'done' || status == 'notListening') && mounted) {
+          setState(() => _listening = false);
+        }
+      },
+    );
+    if (!available) {
+      if (mounted) setState(() => _error = "Voice input isn't available on this device");
+      return;
+    }
+    setState(() {
+      _listening = true;
+      _error = null;
+    });
+    await _speech.listen(
+      onResult: (result) {
+        _promptController.value = TextEditingValue(
+          text: result.recognizedWords,
+          selection: TextSelection.collapsed(offset: result.recognizedWords.length),
+        );
+      },
+    );
   }
 
   Future<void> _handlePrompt(String value) async {
@@ -209,15 +256,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 const CircleAvatar(radius: 22, backgroundColor: MidManColors.gold, child: Icon(Icons.auto_awesome, color: Colors.black)),
                 const SizedBox(height: 14),
                 const Text('How can I help you 😊', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
-                const SizedBox(height: 8),
-                const Text('Type or speak to me', style: TextStyle(color: Colors.grey)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
                   enabled: !_parsing,
                   textInputAction: TextInputAction.send,
                   decoration: InputDecoration(
-                    hintText: "I'm your personal concierge...",
+                    hintText: 'Type or speak to me',
                     suffixIcon: _parsing
                         ? const Padding(
                             padding: EdgeInsets.all(14),
@@ -226,8 +271,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         : ValueListenableBuilder<TextEditingValue>(
                             valueListenable: _promptController,
                             builder: (context, value, _) => IconButton(
-                              icon: Icon(value.text.trim().isEmpty ? Icons.mic : Icons.arrow_forward, color: MidManColors.gold),
-                              onPressed: value.text.trim().isEmpty ? null : () => _handlePrompt(_promptController.text),
+                              icon: Icon(
+                                _listening || value.text.trim().isEmpty ? Icons.mic : Icons.arrow_forward,
+                                color: _listening ? MidManColors.danger : MidManColors.gold,
+                              ),
+                              onPressed: _listening
+                                  ? _toggleListening
+                                  : value.text.trim().isEmpty
+                                      ? _toggleListening
+                                      : () => _handlePrompt(_promptController.text),
                             ),
                           ),
                   ),

@@ -696,7 +696,7 @@ class ServiceGroup {
 }
 
 const kServiceGroups = [
-  ServiceGroup('1', 'Family Care & Shopping', [
+  ServiceGroup('1', 'Family Care & Child Support', [
     ServiceCategoryOption('groceries', 'Groceries', 'Food, personal care, baby & household supplies', serviceTypes: [
       'Food Supplies',
       'Personal Care Products',

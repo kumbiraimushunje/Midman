@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MidMan uses the microphone so you can speak to the AI concierge instead of typing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>MidMan transcribes your speech to fill in the AI concierge's request box.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
