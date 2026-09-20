@@ -88,7 +88,7 @@ SERVICE_GROUPS = [
             {
                 "value": "tenant_coordination",
                 "label": "Tenant Coordination",
-                "service_types": ["Move-in/Move-out Inspections", "Key Collection", "Key Handover"],
+                "service_types": ["Move-in/Move-out Inspections", "Key Collection", "Key Handover", "Rent Collection"],
             },
             {"value": "property_cleaning", "label": "Property Cleaning", "service_types": ["Deep Cleaning", "Move-In / Move-Out"]},
             {

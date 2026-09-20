@@ -54,7 +54,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   MidManUser? _me;
 
   ServiceCategoryOption? get _categoryOption => _category == null ? null : findServiceCategory(_category!);
-  ServiceGroup? get _group => _category == null ? null : findGroupForCategory(_category!);
 
   /// Which categories show up depends on the chosen city (see city_data.dart) -
   /// every city currently allows every active category, but the request-
@@ -277,7 +276,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             DropdownButtonFormField<String>(
               initialValue: _city,
               decoration: const InputDecoration(labelText: 'City'),
-              hint: const Text('Choose a city to see what\'s available there'),
+              hint: const Text('Choose city for available services'),
               items: kZimbabweCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: _onCityChanged,
             ),
@@ -347,7 +346,10 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'What needs to be done?', hintText: 'e.g. Term 3 school fees'),
+              decoration: InputDecoration(
+                labelText: 'What needs to be done?',
+                hintText: _categoryOption?.titleHint ?? 'e.g. Briefly describe what you need',
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -355,7 +357,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Details (optional)',
-                hintText: _group?.descriptionHint ?? 'School name, deadline, anything we should know',
+                hintText: _categoryOption?.detailsHint ?? 'Anything else we should know',
               ),
             ),
             const SizedBox(height: 16),

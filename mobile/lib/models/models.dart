@@ -677,6 +677,8 @@ class ServiceCategoryOption {
   final List<String> serviceTypes; // Level-3 dropdown options; empty if none
   final String? notice; // shown as an info banner when this category is picked
   final List<String> extraFields; // structured fields collected in addition to the description
+  final String titleHint; // shown as the "What needs to be done?" field's hint
+  final String detailsHint; // shown as the "Details (optional)" field's hint
 
   const ServiceCategoryOption(
     this.value,
@@ -685,6 +687,8 @@ class ServiceCategoryOption {
     this.serviceTypes = const [],
     this.notice,
     this.extraFields = const [],
+    required this.titleHint,
+    required this.detailsHint,
   });
 }
 
@@ -692,47 +696,62 @@ class ServiceGroup {
   final String number;
   final String label;
   final List<ServiceCategoryOption> categories;
-  final String? descriptionHint; // shown as the Details field's hint for every category in this group
   final IconData icon; // shown on the Home screen's group card, in place of the plain number badge
 
-  const ServiceGroup(this.number, this.label, this.categories, {this.descriptionHint, required this.icon});
+  const ServiceGroup(this.number, this.label, this.categories, {required this.icon});
 }
 
 const kServiceGroups = [
   ServiceGroup('1', 'Family Care & Child Support', [
-    ServiceCategoryOption('groceries', 'Groceries', 'Food, personal care, baby & household supplies', serviceTypes: [
-      'Food Supplies',
-      'Personal Care Products',
-      'Baby Products',
-      'Household Supplies',
-      'Other',
-    ]),
-    ServiceCategoryOption('healthcare', 'Healthcare', 'Hospital bills, medication, appointments', serviceTypes: [
-      'Pay Hospital Bill',
-      'Buy Medication',
-      'Specialist Appointments',
-      'Medical Procedures',
-      'Laboratory Tests',
-      'Other Healthcare-Related Expenses',
-    ]),
-    ServiceCategoryOption('education', 'Education', 'Tuition, exams, uniforms, transport', serviceTypes: [
-      'Tuition Fees',
-      'Exam Fees',
-      'Uniforms',
-      'Transport',
-      'Stationery',
-      'Other Education-Related Expenses',
-    ]),
+    ServiceCategoryOption(
+      'groceries',
+      'Groceries',
+      'Food, personal care, baby & household supplies',
+      serviceTypes: ['Food Supplies', 'Personal Care Products', 'Baby Products', 'Household Supplies', 'Other'],
+      titleHint: 'e.g. Weekly groceries for Mum',
+      detailsHint: 'e.g. Preferred store, delivery date, dietary preferences',
+    ),
+    ServiceCategoryOption(
+      'healthcare',
+      'Healthcare',
+      'Hospital bills, medication, appointments',
+      serviceTypes: [
+        'Pay Hospital Bill',
+        'Buy Medication',
+        'Specialist Appointments',
+        'Medical Procedures',
+        'Laboratory Tests',
+        'Other Healthcare-Related Expenses',
+      ],
+      titleHint: 'e.g. Pay hospital bill for Dad',
+      detailsHint: 'e.g. Hospital name, patient name, amount due',
+    ),
+    ServiceCategoryOption(
+      'education',
+      'Education',
+      'Tuition, exams, uniforms, transport',
+      serviceTypes: ['Tuition Fees', 'Exam Fees', 'Uniforms', 'Transport', 'Stationery', 'Other Education-Related Expenses'],
+      titleHint: 'e.g. Term 3 school fees',
+      detailsHint: "e.g. School name, deadline, student's name",
+    ),
   ], icon: Icons.family_restroom),
   ServiceGroup('2', 'Documents & Administration', [
-    ServiceCategoryOption('document_collection', 'Document Collection', 'Collecting documents on your behalf', serviceTypes: [
+    ServiceCategoryOption(
+      'document_collection',
       'Document Collection',
-      'Other',
-    ]),
-    ServiceCategoryOption('document_delivery', 'Document Delivery', 'Delivering or submitting documents', serviceTypes: [
-      'Document Submission',
-      'Other',
-    ]),
+      'Collecting documents on your behalf',
+      serviceTypes: ['Document Collection', 'Other'],
+      titleHint: 'e.g. Collect birth certificate from Registry',
+      detailsHint: 'e.g. Document type, collection point, reference number',
+    ),
+    ServiceCategoryOption(
+      'document_delivery',
+      'Document Delivery',
+      'Delivering or submitting documents',
+      serviceTypes: ['Document Submission', 'Other'],
+      titleHint: 'e.g. Deliver passport application to Home Affairs',
+      detailsHint: 'e.g. Document type, delivery address, deadline',
+    ),
     ServiceCategoryOption(
       'government_errands',
       'Administrative Errands',
@@ -741,97 +760,135 @@ const kServiceGroups = [
       notice: "MidMan provides ordinary administrative assistance only (queuing, form submission, "
           "collection). Anything requiring a licensed professional (e.g. a lawyer) or Power of "
           "Attorney isn't covered here and needs separate arrangement.",
+      titleHint: 'e.g. Follow up on my ID application',
+      detailsHint: 'e.g. Application reference number, office, deadline',
     ),
   ], icon: Icons.description_outlined),
   ServiceGroup('3', 'Property Management & Home Services', [
-    ServiceCategoryOption('property_inspection', 'Property Inspections', 'Condition reports, utility coordination', serviceTypes: [
-      'Condition Reporting',
-      'Utility Coordination',
-      'Occupancy Confirmation',
+    ServiceCategoryOption(
+      'property_inspection',
+      'Property Inspections',
+      'Condition reports, utility coordination',
+      serviceTypes: ['Condition Reporting', 'Utility Coordination', 'Occupancy Confirmation', 'Other'],
+      titleHint: 'e.g. Inspect rental property in Borrowdale',
+      detailsHint: 'e.g. Property address, tenant contact, what to check',
+    ),
+    ServiceCategoryOption(
+      'maintenance',
+      'Maintenance',
+      'Repairs, contractors, general upkeep',
+      serviceTypes: [
+        'Plumbing',
+        'Electrical',
+        'Air Conditioning',
+        'Painting',
+        'Carpentry',
+        'Appliance Repairs',
+        'General Repairs',
+        'Cleaning',
+        'Landscaping',
+        'Other',
+      ],
+      titleHint: 'e.g. Fix leaking kitchen tap',
+      detailsHint: 'e.g. Property address, contractor preference, urgency',
+    ),
+    ServiceCategoryOption(
+      'tenant_coordination',
+      'Tenant Coordination',
+      'Move-in/out, key handovers',
+      serviceTypes: ['Move-in/Move-out Inspections', 'Key Collection', 'Key Handover', 'Rent Collection'],
+      titleHint: 'e.g. Hand over keys to new tenant',
+      detailsHint: 'e.g. Property address, tenant name, move-in date',
+    ),
+    ServiceCategoryOption(
+      'property_cleaning',
+      'Property Cleaning',
+      'Deep cleaning, move-in/move-out',
+      serviceTypes: ['Deep Cleaning', 'Move-In / Move-Out'],
+      titleHint: 'e.g. Deep clean before move-in',
+      detailsHint: 'e.g. Property address, size, preferred date',
+    ),
+    ServiceCategoryOption(
+      'building_materials',
+      'Building Materials',
+      'Cement, bricks, steel, hardware',
+      serviceTypes: [
+        'Cement',
+        'Bricks',
+        'Sand',
+        'Steel',
+        'Roofing Materials',
+        'Plumbing Materials',
+        'Electrical Materials',
+        'Paint',
+        'Tiles',
+        'Hardware',
+      ],
+      titleHint: 'e.g. Buy cement and bricks for boundary wall',
+      detailsHint: 'e.g. Quantities, delivery address, supplier preference',
+    ),
+    ServiceCategoryOption(
+      'household_procurement',
+      'Household Procurement',
+      'Appliances, furniture, electronics',
+      serviceTypes: ['Appliances', 'Furniture', 'Electronics', 'Household Goods', 'Office Equipment', 'Other Approved Products'],
+      titleHint: 'e.g. Buy a fridge for the house',
+      detailsHint: 'e.g. Brand/model preference, budget, delivery address',
+    ),
+    ServiceCategoryOption(
+      'procurement',
       'Other',
-    ]),
-    ServiceCategoryOption('maintenance', 'Maintenance', 'Repairs, contractors, general upkeep', serviceTypes: [
-      'Plumbing',
-      'Electrical',
-      'Air Conditioning',
-      'Painting',
-      'Carpentry',
-      'Appliance Repairs',
-      'General Repairs',
-      'Cleaning',
-      'Landscaping',
-      'Other',
-    ]),
-    ServiceCategoryOption('tenant_coordination', 'Tenant Coordination', 'Move-in/out, key handovers', serviceTypes: [
-      'Move-in/Move-out Inspections',
-      'Key Collection',
-      'Key Handover',
-    ]),
-    ServiceCategoryOption('property_cleaning', 'Property Cleaning', 'Deep cleaning, move-in/move-out', serviceTypes: [
-      'Deep Cleaning',
-      'Move-In / Move-Out',
-    ]),
-    ServiceCategoryOption('building_materials', 'Building Materials', 'Cement, bricks, steel, hardware', serviceTypes: [
-      'Cement',
-      'Bricks',
-      'Sand',
-      'Steel',
-      'Roofing Materials',
-      'Plumbing Materials',
-      'Electrical Materials',
-      'Paint',
-      'Tiles',
-      'Hardware',
-    ]),
-    ServiceCategoryOption('household_procurement', 'Household Procurement', 'Appliances, furniture, electronics', serviceTypes: [
-      'Appliances',
-      'Furniture',
-      'Electronics',
-      'Household Goods',
-      'Office Equipment',
-      'Other Approved Products',
-    ]),
-    ServiceCategoryOption('procurement', 'Other', 'General procurement', serviceTypes: ['General Procurement']),
+      'General procurement',
+      serviceTypes: ['General Procurement'],
+      titleHint: 'e.g. Source office chairs',
+      detailsHint: 'e.g. Item, quantity, budget',
+    ),
   ], icon: Icons.home_work_outlined),
   ServiceGroup(
     '4',
     'Gifts & Celebrations',
     [
-      ServiceCategoryOption('birthday_gifts', 'Birthday Gifts', 'Cake, flowers, gifts, event coordination', serviceTypes: [
-        'Cake Only',
-        'Cake & Flowers',
-        'Cake + Flowers & Gift',
-        'Restaurant/Event Coordination',
-      ]),
+      ServiceCategoryOption(
+        'birthday_gifts',
+        'Birthday Gifts',
+        'Cake, flowers, gifts, event coordination',
+        serviceTypes: ['Cake Only', 'Cake & Flowers', 'Cake + Flowers & Gift', 'Restaurant/Event Coordination'],
+        titleHint: 'e.g. Birthday cake and flowers for Mum',
+        detailsHint: 'e.g. Recipient, delivery address, date needed',
+      ),
       ServiceCategoryOption(
         'anniversary_valentines_gifts',
         'Anniversary/Valentines Gifts',
         'Cake, flowers, gifts, event coordination',
         serviceTypes: ['Cake Only', 'Cake & Flowers', 'Cake + Flowers & Gift', 'Restaurant/Event Coordination'],
+        titleHint: "e.g. Valentine's flowers and cake",
+        detailsHint: 'e.g. Recipient, delivery address, date needed',
       ),
-      ServiceCategoryOption('graduation_gifts', 'Graduation Gifts', 'Cake, flowers, gifts, photoshoot', serviceTypes: [
-        'Cake Only',
-        'Cake & Flowers',
-        'Cake + Flowers & Gift',
-        'Restaurant/Event Coordination',
-        'Photoshoot',
-      ]),
-      ServiceCategoryOption('corporate_gifts', 'Corporate Gifts', 'Employee, client & partner gifts', serviceTypes: [
-        'Employee Gifts',
-        'Client Gifts',
-        'Business Partner Gifts',
-        'Executive Gifts',
-        'Special Occasions',
-      ]),
-      ServiceCategoryOption('gifts', 'Other Celebrations', 'Cake, flowers, gifts, photoshoot', serviceTypes: [
-        'Cake Only',
-        'Cake & Flowers',
-        'Cake + Flowers & Gift',
-        'Restaurant/Event Coordination',
-        'Photoshoot',
-      ]),
+      ServiceCategoryOption(
+        'graduation_gifts',
+        'Graduation Gifts',
+        'Cake, flowers, gifts, photoshoot',
+        serviceTypes: ['Cake Only', 'Cake & Flowers', 'Cake + Flowers & Gift', 'Restaurant/Event Coordination', 'Photoshoot'],
+        titleHint: 'e.g. Graduation cake and photoshoot',
+        detailsHint: 'e.g. Recipient, venue, date and time',
+      ),
+      ServiceCategoryOption(
+        'corporate_gifts',
+        'Corporate Gifts',
+        'Employee, client & partner gifts',
+        serviceTypes: ['Employee Gifts', 'Client Gifts', 'Business Partner Gifts', 'Executive Gifts', 'Special Occasions'],
+        titleHint: 'e.g. Year-end gifts for 10 staff',
+        detailsHint: 'e.g. Recipients, quantity, budget per gift',
+      ),
+      ServiceCategoryOption(
+        'gifts',
+        'Other Celebrations',
+        'Cake, flowers, gifts, photoshoot',
+        serviceTypes: ['Cake Only', 'Cake & Flowers', 'Cake + Flowers & Gift', 'Restaurant/Event Coordination', 'Photoshoot'],
+        titleHint: 'e.g. Congratulations gift for a promotion',
+        detailsHint: 'e.g. Recipient, occasion, delivery address',
+      ),
     ],
-    descriptionHint: 'e.g. Cake, Flowers, Gift, Delivery, Personalized Card, Personalised hoodies/tshirts',
     icon: Icons.card_giftcard_outlined,
   ),
   ServiceGroup('5', 'Transportation & Mobility', [
@@ -841,17 +898,19 @@ const kServiceGroups = [
       'Airport drop off or pick up',
       serviceTypes: ['Airport Drop off', 'Airport Pick up'],
       extraFields: ['Airport', 'Flight number', 'Passenger', 'Arrival time', 'Destination'],
+      titleHint: 'e.g. Airport pickup for my sister',
+      detailsHint: 'e.g. Number of bags, vehicle preference, any special instructions',
     ),
   ], icon: Icons.flight_outlined),
   ServiceGroup('6', 'Other', [
-    ServiceCategoryOption('personal_concierge', 'Personal Concierge/Errands', 'Collections, deliveries, local errands', serviceTypes: [
-      'Collections',
-      'Deliveries',
-      'Purchases',
-      'Appointments',
-      'Local Errands',
-      'Personal Administration',
-    ]),
+    ServiceCategoryOption(
+      'personal_concierge',
+      'Personal Concierge/Errands',
+      'Collections, deliveries, local errands',
+      serviceTypes: ['Collections', 'Deliveries', 'Purchases', 'Appointments', 'Local Errands', 'Personal Administration'],
+      titleHint: 'e.g. Pick up dry cleaning',
+      detailsHint: 'e.g. Location, timing, any special instructions',
+    ),
   ], icon: Icons.miscellaneous_services_outlined),
 ];
 
@@ -862,13 +921,6 @@ final kServiceCategories = kServiceGroups.expand((g) => g.categories).toList();
 ServiceCategoryOption? findServiceCategory(String value) {
   for (final c in kServiceCategories) {
     if (c.value == value) return c;
-  }
-  return null;
-}
-
-ServiceGroup? findGroupForCategory(String categoryValue) {
-  for (final g in kServiceGroups) {
-    if (g.categories.any((c) => c.value == categoryValue)) return g;
   }
   return null;
 }
