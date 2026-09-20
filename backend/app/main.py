@@ -77,6 +77,8 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(400, "Email already registered")
     if db.query(User).filter(User.phone == payload.phone).first():
         raise HTTPException(400, "Phone already registered")
+    if db.query(User).filter(User.username == payload.username).first():
+        raise HTTPException(400, "Username already taken")
 
     member_id = generate_member_id(db, payload.full_name)
     user = User(
@@ -85,6 +87,7 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
         date_of_birth=payload.date_of_birth,
         email=payload.email,
         phone=payload.phone,
+        username=payload.username,
         password_hash=hash_password(payload.password),
         physical_address=payload.physical_address,
         country_of_residence=payload.country_of_residence,
@@ -109,6 +112,8 @@ def register_business(payload: schemas.BusinessRegisterRequest, db: Session = De
         raise HTTPException(400, "Email already registered")
     if db.query(User).filter(User.phone == payload.phone).first():
         raise HTTPException(400, "Phone already registered")
+    if db.query(User).filter(User.username == payload.username).first():
+        raise HTTPException(400, "Username already taken")
 
     company = Company(
         business_id=generate_business_id(db),
@@ -140,6 +145,7 @@ def register_business(payload: schemas.BusinessRegisterRequest, db: Session = De
         date_of_birth=payload.date_of_birth,
         email=payload.email,
         phone=payload.phone,
+        username=payload.username,
         password_hash=hash_password(payload.password),
         country_of_residence=payload.country,
         primary_purpose="Business",
@@ -160,9 +166,16 @@ def register_business(payload: schemas.BusinessRegisterRequest, db: Session = De
 
 @app.post("/auth/login", response_model=schemas.Token)
 def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email, User.deleted_at.is_(None)).first()
+    user = (
+        db.query(User)
+        .filter(
+            or_(User.email == payload.identifier, User.username == payload.identifier, User.phone == payload.identifier),
+            User.deleted_at.is_(None),
+        )
+        .first()
+    )
     if not user or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(401, "Incorrect email or password")
+        raise HTTPException(401, "Incorrect email, username, phone, or password")
     return schemas.Token(access_token=create_access_token(str(user.id)))
 
 

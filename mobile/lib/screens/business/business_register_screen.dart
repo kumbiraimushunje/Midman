@@ -26,6 +26,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
   DateTime? _dob;
   final _email = TextEditingController();
   final _phone = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   String _dialCode = '+263';
 
@@ -56,7 +57,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
   @override
   void dispose() {
     for (final c in [
-      _fullName, _email, _phone, _password, _legalName, _tradingName, _registrationNumber,
+      _fullName, _email, _phone, _username, _password, _legalName, _tradingName, _registrationNumber,
       _registeredAddress, _businessAddress, _industry, _authorizedRep, _companyEmail, _companyPhone,
       _taxDetails, _billingName, _billingEmail, _billingPhone, _opsName, _opsEmail, _opsPhone,
     ]) {
@@ -96,6 +97,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
             '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
         email: _email.text.trim(),
         phone: '$_dialCode${_phone.text.trim()}',
+        username: _username.text.trim(),
         password: _password.text,
         legalName: _legalName.text.trim(),
         tradingName: _tradingName.text.trim().isEmpty ? null : _tradingName.text.trim(),
@@ -129,7 +131,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Register a Business')),
+      appBar: AppBar(title: const Text('Create a Business Account')),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -186,6 +188,12 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _username,
+                decoration: const InputDecoration(labelText: 'Username', hintText: 'You can sign in with this instead of your email'),
+                validator: _required,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -300,7 +308,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
                 onPressed: _loading ? null : _submit,
                 child: _loading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Register Business'),
+                    : const Text('Create Business Account'),
               ),
               const SizedBox(height: 12),
               Center(

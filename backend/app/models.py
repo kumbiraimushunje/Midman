@@ -145,6 +145,10 @@ class User(Base):
     date_of_birth = Column(Date, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
     phone = Column(String, unique=True, nullable=False)
+    # Nullable at the DB level so pre-existing rows stay valid - the
+    # registration schemas require it for every new signup, and login
+    # accepts it alongside email/phone as the identifier.
+    username = Column(String, unique=True, nullable=True, index=True)
     password_hash = Column(String, nullable=False)
 
     physical_address = Column(String, nullable=True)

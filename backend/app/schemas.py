@@ -16,6 +16,7 @@ class RegisterRequest(BaseModel):
     date_of_birth: date
     email: EmailStr
     phone: str
+    username: str
     password: str
     physical_address: Optional[str] = None
     country_of_residence: str
@@ -23,7 +24,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Email, username, or phone - whichever the account was found by.
+    identifier: str
     password: str
 
 
@@ -44,6 +46,7 @@ class UserOut(BaseModel):
     full_name: str
     email: EmailStr
     phone: str
+    username: Optional[str] = None
     role: UserRole
     account_type: AccountType
     trial_ends_at: Optional[datetime] = None
@@ -88,6 +91,7 @@ class BusinessRegisterRequest(BaseModel):
     date_of_birth: date
     email: EmailStr
     phone: str
+    username: str
     password: str
 
     # The company itself.

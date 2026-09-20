@@ -110,6 +110,7 @@ class MidManUser {
   final String fullName;
   final String email;
   final String phone;
+  final String? username;
   final String role;
   final String accountType;
   final DateTime? trialEndsAt;
@@ -126,6 +127,7 @@ class MidManUser {
     required this.fullName,
     required this.email,
     required this.phone,
+    this.username,
     required this.role,
     required this.accountType,
     this.trialEndsAt,
@@ -147,6 +149,7 @@ class MidManUser {
         fullName: json['full_name'],
         email: json['email'],
         phone: json['phone'],
+        username: json['username'],
         role: json['role'],
         accountType: json['account_type'],
         trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),

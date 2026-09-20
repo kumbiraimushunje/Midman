@@ -13,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _error;
@@ -24,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await ApiService.login(email: _emailController.text.trim(), password: _passwordController.text);
+      await ApiService.login(identifier: _identifierController.text.trim(), password: _passwordController.text);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const RoleHomeShell()));
     } catch (e) {
@@ -50,9 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const Text('Sign in to your MidMan account', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
               TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
+                controller: _identifierController,
+                decoration: const InputDecoration(labelText: 'Email, username, or phone'),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -82,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
                   },
-                  child: const Text("Don't have an account? Register"),
+                  child: const Text("Don't have an account? Create account"),
                 ),
               ),
               Center(
@@ -91,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => const BusinessRegisterScreen()));
                   },
-                  child: const Text('Register a Business account'),
+                  child: const Text('Create a Business account'),
                 ),
               ),
             ],

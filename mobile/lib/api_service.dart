@@ -58,6 +58,7 @@ class ApiService {
     required String dateOfBirth, // yyyy-MM-dd
     required String email,
     required String phone,
+    required String username,
     required String password,
     required String countryOfResidence,
     String? primaryPurpose,
@@ -70,6 +71,7 @@ class ApiService {
         'date_of_birth': dateOfBirth,
         'email': email,
         'phone': phone,
+        'username': username,
         'password': password,
         'country_of_residence': countryOfResidence,
         'primary_purpose': primaryPurpose,
@@ -87,6 +89,7 @@ class ApiService {
     required String dateOfBirth,
     required String email,
     required String phone,
+    required String username,
     required String password,
     required String legalName,
     String? tradingName,
@@ -114,6 +117,7 @@ class ApiService {
         'date_of_birth': dateOfBirth,
         'email': email,
         'phone': phone,
+        'username': username,
         'password': password,
         'legal_name': legalName,
         'trading_name': tradingName,
@@ -138,11 +142,14 @@ class ApiService {
     await _storage.write(key: 'access_token', value: data['access_token']);
   }
 
-  static Future<void> login({required String email, required String password}) async {
+  /// [identifier] is whatever the customer typed - their email, username,
+  /// or phone number all work, matching whichever field it was registered
+  /// under (see app/main.py's login()).
+  static Future<void> login({required String identifier, required String password}) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode({'identifier': identifier, 'password': password}),
     );
     final data = _decode(res);
     await _storage.write(key: 'access_token', value: data['access_token']);

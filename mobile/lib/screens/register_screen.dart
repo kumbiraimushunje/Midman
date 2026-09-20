@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullName = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
+  final _username = TextEditingController();
   final _password = TextEditingController();
   DateTime? _dob;
   String? _purpose;
@@ -61,6 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
         email: _email.text.trim(),
         phone: '$_dialCode${_phone.text.trim()}',
+        username: _username.text.trim(),
         password: _password.text,
         countryOfResidence: _countryName!,
         primaryPurpose: _purpose,
@@ -135,6 +137,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _username,
+                decoration: const InputDecoration(labelText: 'Username', hintText: 'You can sign in with this instead of your email'),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
