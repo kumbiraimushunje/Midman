@@ -940,7 +940,7 @@ def run_due_inspection_reminders(
     has no staff login of its own - it authenticates with X-Cron-Secret,
     checked against CRON_SECRET, rather than a bearer token."""
     is_cron = bool(settings.cron_secret) and x_cron_secret == settings.cron_secret
-    is_staff = current_user is not None and current_user.role in (UserRole.staff, UserRole.admin)
+    is_staff = current_user is not None and current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
     if not is_cron and not is_staff:
         raise HTTPException(403, "Staff only")
     return {"sent": send_due_reminders(db)}
