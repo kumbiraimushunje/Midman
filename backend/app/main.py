@@ -411,7 +411,7 @@ def list_all_requests(
 ):
     """The staff/admin work queue - every request, optionally filtered by
     status. Pro customers' requests surface first ("prioritised first")."""
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     query = db.query(ServiceRequest).join(User, ServiceRequest.requester_id == User.id)
     if status_filter is not None:
@@ -445,8 +445,8 @@ def my_requests(current_user: User = Depends(get_current_user), db: Session = De
 
 @app.get("/service-requests/pending", response_model=list[schemas.ServiceRequestOut])
 def pending_for_approval(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in (UserRole.approver, UserRole.admin, UserRole.staff):
-        raise HTTPException(403, "Not an approver")
+    if current_user.role not in (UserRole.admin, UserRole.staff):
+        raise HTTPException(403, "Not authorized to approve")
     return (
         db.query(ServiceRequest)
         .filter(ServiceRequest.status == RequestStatus.approval_required)
@@ -470,7 +470,7 @@ def get_request(
 ):
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
-    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin)
     if not (is_owner or is_staff):
         raise HTTPException(403, "Not your request")
     return req
@@ -517,7 +517,7 @@ async def upload_evidence(
     supplier's price quote (file_type=quote, with supplier_name) to compare later."""
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
-    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin)
     if not (is_owner or is_staff):
         raise HTTPException(403, "Not your request")
 
@@ -542,7 +542,7 @@ def get_quote_comparison(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     req = _get_request_or_404(request_id, db)
     if req.quote_comparison is None:
@@ -559,7 +559,7 @@ def generate_quote_comparison(
     """(Re)generates an AI comparison across every quote-type evidence file attached to
     this request - just an aid for staff deciding which supplier to go with, never
     binding and never surfaced to the customer directly."""
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     req = _get_request_or_404(request_id, db)
 
@@ -596,8 +596,8 @@ def approve_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.approver, UserRole.admin, UserRole.staff):
-        raise HTTPException(403, "Not an approver")
+    if current_user.role not in (UserRole.admin, UserRole.staff):
+        raise HTTPException(403, "Not authorized to approve")
     req = _get_request_or_404(request_id, db)
     req.status = RequestStatus.payment_pending
     req.approver_id = current_user.id
@@ -622,8 +622,8 @@ def reject_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.approver, UserRole.admin, UserRole.staff):
-        raise HTTPException(403, "Not an approver")
+    if current_user.role not in (UserRole.admin, UserRole.staff):
+        raise HTTPException(403, "Not authorized to approve")
     req = _get_request_or_404(request_id, db)
     req.status = RequestStatus.rejected
     req.approver_id = current_user.id
@@ -769,7 +769,7 @@ def latest_payment(
 ):
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
-    is_staff = current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    is_staff = current_user.role in (UserRole.staff, UserRole.admin)
     if not (is_owner or is_staff):
         raise HTTPException(403, "Not your request")
     return (
@@ -881,7 +881,7 @@ async def flutterwave_webhook(request: Request, background_tasks: BackgroundTask
 
 @app.get("/reports/dashboard", response_model=schemas.DashboardReport)
 def dashboard_report(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     return build_dashboard_report(db)
 
@@ -940,7 +940,7 @@ def run_due_inspection_reminders(
     has no staff login of its own - it authenticates with X-Cron-Secret,
     checked against CRON_SECRET, rather than a bearer token."""
     is_cron = bool(settings.cron_secret) and x_cron_secret == settings.cron_secret
-    is_staff = current_user is not None and current_user.role in (UserRole.staff, UserRole.admin, UserRole.approver)
+    is_staff = current_user is not None and current_user.role in (UserRole.staff, UserRole.admin)
     if not is_cron and not is_staff:
         raise HTTPException(403, "Staff only")
     return {"sent": send_due_reminders(db)}
@@ -951,7 +951,7 @@ def run_due_inspection_reminders(
 @app.get("/kyc/pending", response_model=list[schemas.KYCReviewOut])
 def pending_kyc_reviews(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """The staff review queue - customers who've submitted an id/passport and are awaiting a decision."""
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     return (
         db.query(User)
@@ -969,7 +969,7 @@ def decide_kyc(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     target = db.query(User).filter(User.id == user_id).first()
     if target is None:
@@ -1151,7 +1151,7 @@ def list_company_documents(current_user: User = Depends(get_current_user), db: S
 @app.get("/companies/pending", response_model=list[schemas.CompanyKYCReviewOut])
 def pending_company_reviews(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """The staff review queue - Business accounts awaiting verification."""
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     companies = (
         db.query(Company)
@@ -1175,7 +1175,7 @@ def decide_company_kyc(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.staff, UserRole.admin, UserRole.approver):
+    if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     company = db.query(Company).filter(Company.id == company_id).first()
     if company is None:

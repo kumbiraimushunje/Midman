@@ -8,14 +8,12 @@ import 'audit_log_screen.dart';
 const _roleOptions = [
   ('customer', 'Customer'),
   ('staff', 'Staff'),
-  ('approver', 'Approver'),
   ('admin', 'Admin'),
 ];
 
 Color _roleColor(String role) => switch (role) {
       'admin' => MidManColors.danger,
       'staff' => MidManColors.gold,
-      'approver' => MidManColors.navy,
       _ => MidManColors.textMuted,
     };
 

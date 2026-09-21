@@ -5,16 +5,13 @@ import 'admin/admin_home_shell.dart';
 import 'home_shell.dart';
 import 'staff/staff_home_shell.dart';
 
-const _staffRoles = {'staff', 'approver'};
-
 /// Resolves the logged-in user's role and shows the customer, staff, or
 /// admin shell accordingly. Used both at app startup (already-logged-in
 /// session) and right after a successful login.
 ///
-/// Staff and approver share a day-to-day work-queue shell (requests, KYC
-/// review, reports). Admin gets a distinct shell with everything staff has
-/// plus system-level user/role management - it isn't just another staff
-/// role, it controls the application itself.
+/// Admin gets a distinct shell with everything staff has plus
+/// system-level user/role management and approvals - it isn't just
+/// another staff role, it controls the application itself.
 class RoleHomeShell extends StatelessWidget {
   const RoleHomeShell({super.key});
 
@@ -30,8 +27,8 @@ class RoleHomeShell extends StatelessWidget {
         if (role == 'admin') {
           return const AdminHomeShell();
         }
-        if (role != null && _staffRoles.contains(role)) {
-          return StaffHomeShell(role: role);
+        if (role == 'staff') {
+          return const StaffHomeShell();
         }
         return const HomeShell();
       },

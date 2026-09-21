@@ -453,7 +453,7 @@ class ApiService {
     return data.map((e) => ServiceRequest.fromJson(e)).toList();
   }
 
-  /// Staff/admin/approver only - the full work queue, optionally filtered by status
+  /// Staff/admin only - the full work queue, optionally filtered by status
   /// (a RequestStatus value like 'approval_required', 'in_progress', ...).
   static Future<List<ServiceRequest>> allRequests({String? status}) async {
     final uri = Uri.parse('$_baseUrl/service-requests').replace(

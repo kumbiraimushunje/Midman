@@ -12,8 +12,7 @@ from .database import Base
 class UserRole(str, enum.Enum):
     customer = "customer"
     staff = "staff"       # concierge / ops staff who action requests, upload evidence
-    approver = "approver"  # approves/rejects on behalf of a customer (e.g. company manager)
-    admin = "admin"
+    admin = "admin"        # also handles approvals - there's no separate approver role
 
 
 class AccountType(str, enum.Enum):
