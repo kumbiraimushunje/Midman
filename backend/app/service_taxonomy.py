@@ -99,7 +99,7 @@ SERVICE_GROUPS = [
             {"value": "property_cleaning", "label": "Property Cleaning", "service_types": ["Deep Cleaning", "Move-In / Move-Out"]},
             {
                 "value": "building_materials",
-                "label": "Building Materials",
+                "label": "Hardware & Construction Material",
                 "service_types": [
                     "Cement",
                     "Bricks",
@@ -115,7 +115,7 @@ SERVICE_GROUPS = [
             },
             {
                 "value": "household_procurement",
-                "label": "Household Procurement",
+                "label": "Home & Office Appliances",
                 "service_types": ["Appliances", "Furniture", "Electronics", "Household Goods", "Office Equipment", "Other Approved Products"],
             },
             {"value": "procurement", "label": "Other", "service_types": ["General Procurement"]},

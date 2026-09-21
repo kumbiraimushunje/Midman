@@ -6,8 +6,8 @@ None) and sees the full active taxonomy unfiltered.
 
 Harare (the capital, MidMan's main hub) offers every active category.
 Bulawayo and Mutare don't yet have the logistics/partner network for
-Airport Transfers (transportation), Building Materials, or Property
-Cleaning - those stay Harare-only until that changes. Edit a city's list
+Airport Transfers (transportation), Hardware & Construction Material, or
+Property Cleaning - those stay Harare-only until that changes. Edit a city's list
 here (see service_taxonomy.py's ACTIVE_CATEGORIES for the full set of
 valid values) as coverage grows - the request-creation endpoint enforces
 whatever's listed here, and the app's New Request form filters its

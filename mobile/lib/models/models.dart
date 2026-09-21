@@ -816,7 +816,7 @@ const kServiceGroups = [
     ),
     ServiceCategoryOption(
       'building_materials',
-      'Building Materials',
+      'Hardware & Construction Material',
       'Cement, bricks, steel, hardware',
       serviceTypes: [
         'Cement',
@@ -835,7 +835,7 @@ const kServiceGroups = [
     ),
     ServiceCategoryOption(
       'household_procurement',
-      'Household Procurement',
+      'Home & Office Appliances',
       'Appliances, furniture, electronics',
       serviceTypes: ['Appliances', 'Furniture', 'Electronics', 'Household Goods', 'Office Equipment', 'Other Approved Products'],
       titleHint: 'e.g. Buy a fridge for the house',
