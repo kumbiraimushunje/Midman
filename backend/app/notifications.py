@@ -94,7 +94,7 @@ def notify_inspection_reminder(user: User, property_label: str | None) -> None:
         f"Hi {user.full_name},\n\n"
         f"This is your reminder to book a property inspection{where}. "
         "Open the MidMan app and request one under Property Management & Home "
-        "Services whenever you're ready - we'll take it from there.\n\n"
+        "Centre whenever you're ready - we'll take it from there.\n\n"
         "MidMan"
     )
     _send(user.email, subject, body)

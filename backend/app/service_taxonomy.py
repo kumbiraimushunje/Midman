@@ -62,7 +62,7 @@ SERVICE_GROUPS = [
         ],
     },
     {
-        "label": "Property Management & Home Services",
+        "label": "Property Management & Home Centre",
         "categories": [
             {
                 "value": "property_inspection",

@@ -764,7 +764,7 @@ const kServiceGroups = [
       detailsHint: 'e.g. Application reference number, office, deadline',
     ),
   ], icon: Icons.description_outlined),
-  ServiceGroup('3', 'Property Management & Home Services', [
+  ServiceGroup('3', 'Property Management & Home Centre', [
     ServiceCategoryOption(
       'property_inspection',
       'Property Inspections',
