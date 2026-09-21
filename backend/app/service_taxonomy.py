@@ -67,7 +67,13 @@ SERVICE_GROUPS = [
             {
                 "value": "property_inspection",
                 "label": "Property Inspections",
-                "service_types": ["Condition Reporting", "Utility Coordination", "Occupancy Confirmation", "Other"],
+                "service_types": [
+                    "Condition Reporting",
+                    "Utility Coordination",
+                    "Occupancy Confirmation",
+                    "Construction Progress Inspection",
+                    "Other",
+                ],
             },
             {
                 "value": "maintenance",
