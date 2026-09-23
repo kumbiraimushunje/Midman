@@ -1,10 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import 'app_navigation.dart';
 import 'models/models.dart';
+import 'screens/login_screen.dart';
 
 /// 10.0.2.2 is how the Android emulator reaches the host machine's localhost.
 /// On web, a physical device, or an iOS simulator, point this at your
@@ -41,6 +44,12 @@ class ApiService {
     };
   }
 
+  // The exact 401 messages get_current_user raises for a missing/invalid/
+  // expired token - distinct from a wrong-password 401 on /auth/login itself,
+  // which should NOT trigger a "session expired" redirect.
+  static const _sessionInvalidMessages = {'Could not validate credentials', 'Not authenticated'};
+  static bool _handlingSessionExpiry = false;
+
   static dynamic _decode(http.Response res) {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       if (res.body.isEmpty) return null;
@@ -50,7 +59,29 @@ class ApiService {
     try {
       detail = (jsonDecode(res.body)['detail'] ?? res.body).toString();
     } catch (_) {}
+    if (res.statusCode == 401 && _sessionInvalidMessages.contains(detail)) {
+      _handleSessionExpired();
+    }
     throw ApiException(detail, statusCode: res.statusCode);
+  }
+
+  /// Clears the stale token and bounces to the login screen with a plain-
+  /// English explanation, instead of leaving the raw backend 401 message
+  /// wherever the failed request happened to surface it. Guarded so a burst
+  /// of requests that all fail together (a screen with several parallel
+  /// fetches) only triggers this once.
+  static void _handleSessionExpired() {
+    if (_handlingSessionExpiry) return;
+    _handlingSessionExpiry = true;
+    _storage.delete(key: 'access_token');
+    final navigator = navigatorKey.currentState;
+    if (navigator != null) {
+      navigator.pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+    }
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      const SnackBar(content: Text('Your session expired - please sign in again')),
+    );
+    Future.delayed(const Duration(seconds: 2), () => _handlingSessionExpiry = false);
   }
 
   static Future<void> register({

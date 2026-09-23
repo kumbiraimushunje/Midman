@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_service.dart';
+import 'app_navigation.dart';
 import 'screens/role_home_shell.dart';
 import 'screens/splash_screen.dart';
 import 'theme.dart';
@@ -18,6 +19,8 @@ class MidManApp extends StatelessWidget {
       title: 'MidMan',
       debugShowCheckedModeBanner: false,
       theme: buildMidManTheme(),
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       home: const _StartupGate(),
     );
   }
