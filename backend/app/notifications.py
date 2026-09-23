@@ -90,6 +90,20 @@ def notify_admin_approval(user: User, request: ServiceRequest, approved: bool, c
     _send(user.email, subject, body)
 
 
+def notify_admin_request_pending(admin: User, requester: User, request: ServiceRequest) -> None:
+    """Sent to every MidMan admin as soon as a request is actually ready for
+    admin review - immediately for a direct request, or once the beneficiary's
+    authorizer has signed off for one raised "as a beneficiary"."""
+    subject = f"Request needs your approval - {request.request_number}"
+    body = (
+        f"Hi {admin.full_name},\n\n"
+        f"{requester.full_name} raised a request \"{request.title}\" ({request.request_number}) that's "
+        f"ready for your approval before staff can start on it.\n\n"
+        f"Open the MidMan app to review it.\n\nMidMan"
+    )
+    _send(admin.email, subject, body)
+
+
 def notify_payment_received(user: User, request: ServiceRequest, amount, currency: str) -> None:
     subject = f"Payment received - {request.request_number}"
     body = (

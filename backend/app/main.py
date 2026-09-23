@@ -46,6 +46,7 @@ from .models import (
 )
 from .notifications import (
     notify_admin_approval,
+    notify_admin_request_pending,
     notify_authorizer_approval_needed,
     notify_authorizer_decision,
     notify_company_kyc_decision,
@@ -422,6 +423,11 @@ def create_service_request(
     )
     if authorizer is not None:
         background_tasks.add_task(notify_authorizer_approval_needed, authorizer, current_user, req)
+    else:
+        # A direct request is ready for admin review immediately - one raised
+        # "as a beneficiary" only reaches that point once its authorizer
+        # approves (see authorizer_approve_request).
+        _notify_admins_request_pending(db, background_tasks, req)
     return req
 
 
@@ -490,6 +496,15 @@ def _get_request_or_404(request_id, db: Session) -> ServiceRequest:
     if req is None:
         raise HTTPException(404, "Request not found")
     return req
+
+
+def _notify_admins_request_pending(db: Session, background_tasks: BackgroundTasks, req: ServiceRequest) -> None:
+    """Emails every MidMan admin that a request is ready for their approval -
+    called once a request actually reaches that point (immediately for a
+    direct request, or once its authorizer has signed off)."""
+    admins = db.query(User).filter(User.role == UserRole.admin, User.deleted_at.is_(None)).all()
+    for admin in admins:
+        background_tasks.add_task(notify_admin_request_pending, admin, req.requester, req)
 
 
 @app.get("/service-requests/{request_id}", response_model=schemas.ServiceRequestOut)
@@ -697,6 +712,7 @@ def authorizer_approve_request(
     db.commit()
     db.refresh(req)
     background_tasks.add_task(notify_authorizer_decision, req.requester, current_user, req, True, payload.comment)
+    _notify_admins_request_pending(db, background_tasks, req)
     return req
 
 

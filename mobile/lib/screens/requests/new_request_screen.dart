@@ -436,6 +436,8 @@ class _AuthorizerCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text('How should this be sent?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -461,12 +463,14 @@ class _AuthorizerCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            isBeneficiaryMode
+                ? 'Your authorizer approves it first, then a MidMan admin reviews it.'
+                : 'Goes straight to a MidMan admin for approval - no authorizer involved.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
           if (isBeneficiaryMode) ...[
-            const SizedBox(height: 12),
-            Text(
-              "Your authorizer approves it first, then MidMan reviews it.",
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               initialValue: selectedAuthorizerId,
