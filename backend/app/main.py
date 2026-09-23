@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import case, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import flutterwave_gateway, paynow_gateway, schemas
@@ -26,7 +26,6 @@ from .business_permissions import (
 from .id_generator import generate_business_id, generate_member_id, generate_payment_reference, generate_request_number
 from .models import (
     CUSTOMER_STAGE_MAP,
-    AccountType,
     AuditLog,
     Beneficiary,
     BusinessRole,
@@ -55,7 +54,6 @@ from .notifications import (
 from .reminders import next_due_at, send_due_reminders
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, get_current_user_optional, hash_password, verify_password
-from .subscriptions import can_manage_beneficiaries, trial_ends_at_for_new_user, visible_statuses_for
 from .uploads import UPLOAD_DIR, content_type_for, read_upload_bytes, save_upload
 
 app = FastAPI(title="MidMan API")
@@ -92,7 +90,6 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
         physical_address=payload.physical_address,
         country_of_residence=payload.country_of_residence,
         primary_purpose=payload.primary_purpose,
-        trial_ends_at=trial_ends_at_for_new_user(),
     )
     db.add(user)
     db.flush()  # assigns user.id before the audit row references it
@@ -149,7 +146,6 @@ def register_business(payload: schemas.BusinessRegisterRequest, db: Session = De
         password_hash=hash_password(payload.password),
         country_of_residence=payload.country,
         primary_purpose="Business",
-        trial_ends_at=trial_ends_at_for_new_user(),
         company_id=company.id,
         business_role=BusinessRole.administrator,
     )
@@ -198,30 +194,6 @@ def delete_me(
         meta={"reason": payload.reason} if payload.reason else None,
     )
     db.commit()
-
-
-@app.post("/me/subscription", response_model=schemas.UserOut)
-def change_subscription(
-    payload: schemas.SubscriptionChangeRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """Self-service tier switch. No payment gateway wired up yet - pricing
-    for each tier hasn't been set, so this just records the choice."""
-    old_tier = current_user.account_type.value
-    current_user.account_type = payload.account_type
-    record_audit(
-        db,
-        current_user,
-        "user.subscription_change",
-        "user",
-        f"{current_user.full_name} switched from {old_tier} to {payload.account_type.value}",
-        entity_id=current_user.id,
-        meta={"from": old_tier, "to": payload.account_type.value},
-    )
-    db.commit()
-    db.refresh(current_user)
-    return current_user
 
 
 @app.post("/me/kyc-document", response_model=schemas.UserOut)
@@ -315,7 +287,6 @@ def ai_support_chat(
         "full_name": current_user.full_name,
         "member_id": current_user.member_id,
         "role": current_user.role.value,
-        "account_type": current_user.account_type.value,
         "kyc_status": current_user.kyc_status.value,
         "recent_requests": [
             {
@@ -339,12 +310,6 @@ def create_beneficiary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if not can_manage_beneficiaries(current_user):
-        raise HTTPException(
-            403,
-            "PAYG doesn't support saved beneficiaries - upgrade to Standard or Pro "
-            "to save the people you look after instead of re-entering details each time.",
-        )
     beneficiary = Beneficiary(owner_id=current_user.id, **payload.model_dump())
     db.add(beneficiary)
     db.commit()
@@ -409,23 +374,21 @@ def list_all_requests(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """The staff/admin work queue - every request, optionally filtered by
-    status. Pro customers' requests surface first ("prioritised first")."""
+    """The staff/admin work queue - every request, optionally filtered by status."""
     if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     query = db.query(ServiceRequest).join(User, ServiceRequest.requester_id == User.id)
     if status_filter is not None:
         query = query.filter(ServiceRequest.status == status_filter)
-    priority = case((User.account_type == AccountType.pro, 0), else_=1)
-    return query.order_by(priority, ServiceRequest.created_at.desc()).all()
+    return query.order_by(ServiceRequest.created_at.desc()).all()
 
 
 @app.get("/service-requests/mine", response_model=list[schemas.ServiceRequestOut])
 def my_requests(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """PAYG only sees requests still in flight ("no list of previous transactions").
-    Business employees with company-wide visibility (Administrator, Finance,
-    Operations, Viewer/Auditor) see every request raised by anyone in their
-    company; a Requester only ever sees their own."""
+    """Every account sees its full request history. Business employees with
+    company-wide visibility (Administrator, Finance, Operations, Viewer/Auditor)
+    see every request raised by anyone in their company; a Requester only ever
+    sees their own."""
     if current_user.company_id is not None and can_view_all_company_requests(current_user):
         query = (
             db.query(ServiceRequest)
@@ -434,9 +397,6 @@ def my_requests(current_user: User = Depends(get_current_user), db: Session = De
         )
     else:
         query = db.query(ServiceRequest).filter(ServiceRequest.requester_id == current_user.id)
-    allowed_statuses = visible_statuses_for(current_user)
-    if allowed_statuses is not None:
-        query = query.filter(ServiceRequest.status.in_(allowed_statuses))
     business_statuses = visible_statuses_for_business_role(current_user)
     if business_statuses is not None:
         query = query.filter(ServiceRequest.status.in_(business_statuses))
@@ -1038,7 +998,6 @@ def create_employee(
         password_hash=hash_password(payload.password),
         country_of_residence=company.country,
         primary_purpose="Business",
-        trial_ends_at=trial_ends_at_for_new_user(),
         company_id=company.id,
         business_role=payload.business_role,
     )

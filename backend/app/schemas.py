@@ -177,10 +177,6 @@ class CompanyDocumentOut(BaseModel):
         return resolve_file_url(v)
 
 
-class SubscriptionChangeRequest(BaseModel):
-    account_type: AccountType
-
-
 class BeneficiaryCreate(BaseModel):
     full_name: str
     relationship_type: str

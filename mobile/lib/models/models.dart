@@ -112,8 +112,6 @@ class MidManUser {
   final String phone;
   final String? username;
   final String role;
-  final String accountType;
-  final DateTime? trialEndsAt;
   final String kycStatus;
   final String? kycRejectionReason;
   final String? countryOfResidence;
@@ -129,8 +127,6 @@ class MidManUser {
     required this.phone,
     this.username,
     required this.role,
-    required this.accountType,
-    this.trialEndsAt,
     required this.kycStatus,
     this.kycRejectionReason,
     this.countryOfResidence,
@@ -139,7 +135,6 @@ class MidManUser {
     this.businessRole,
   });
 
-  bool get isOnTrial => trialEndsAt != null && DateTime.now().isBefore(trialEndsAt!);
   bool get isActive => deletedAt == null;
   bool get isBusinessAccount => companyId != null;
 
@@ -151,8 +146,6 @@ class MidManUser {
         phone: json['phone'],
         username: json['username'],
         role: json['role'],
-        accountType: json['account_type'],
-        trialEndsAt: json['trial_ends_at'] == null ? null : DateTime.parse(json['trial_ends_at']),
         kycStatus: json['kyc_status'],
         kycRejectionReason: json['kyc_rejection_reason'],
         countryOfResidence: json['country_of_residence'],
@@ -931,31 +924,3 @@ ServiceCategoryOption? findServiceCategory(String value) {
   return null;
 }
 
-/// Membership tier metadata for the plan picker. Pricing isn't set yet -
-/// "Subscriptions fees right amounts will be added later".
-class SubscriptionTier {
-  final String value; // matches the backend AccountType enum
-  final String label;
-  final List<String> features;
-
-  const SubscriptionTier(this.value, this.label, this.features);
-}
-
-const kSubscriptionTiers = [
-  SubscriptionTier('payg', 'Pay As You Go', [
-    'Unlimited use, charged per service',
-    'No saved beneficiaries - enter details each time',
-    'No history of past requests',
-  ]),
-  SubscriptionTier('standard', 'Standard', [
-    'Save beneficiaries you look after',
-    'Full history of past requests',
-    'Faster processing than PAYG',
-    'Recurring payments allowed',
-  ]),
-  SubscriptionTier('pro', 'Pro', [
-    'Everything in Standard',
-    'Priority - served first in the queue',
-    'Free digital assistance (e.g. document help)',
-  ]),
-];

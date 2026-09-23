@@ -7,7 +7,6 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
-import '../account/subscription_screen.dart';
 import '../requests/category_picker_screen.dart';
 import '../requests/new_request_screen.dart';
 import '../requests/request_detail_screen.dart';
@@ -62,16 +61,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ? 'Your identity verification was declined - upload a new document'
               : 'Verify your identity to get the most out of MidMan',
           color: MidManColors.warning,
-        ));
-      }
-      if (user.isOnTrial && user.trialEndsAt!.difference(DateTime.now()).inDays <= 7) {
-        final days = user.trialEndsAt!.difference(DateTime.now()).inDays;
-        reminders.add(_HomeReminder(
-          icon: Icons.hourglass_bottom_outlined,
-          text: days <= 0 ? 'Your free trial ends today - choose a plan' : 'Your free trial ends in $days day${days == 1 ? '' : 's'}',
-          color: MidManColors.warning,
-          onTap: (context) => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType))),
         ));
       }
     } catch (_) {
@@ -440,7 +429,6 @@ class _Promotion {
 // small carousel widget so it's a drop-in swap for one later.
 const _kPromotions = [
   _Promotion(title: 'Refer a friend', subtitle: 'Give a friend MidMan, get a reward when they join', icon: Icons.people_alt_outlined),
-  _Promotion(title: 'Go Pro', subtitle: 'Priority service and free digital assistance', icon: Icons.workspace_premium_outlined),
   _Promotion(title: 'Try the AI concierge', subtitle: 'Just describe what you need - we\'ll fill in the rest', icon: Icons.auto_awesome_outlined),
 ];
 

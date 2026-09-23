@@ -1,6 +1,5 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api_service.dart';
@@ -9,7 +8,6 @@ import '../../theme.dart';
 import '../business/employees_screen.dart';
 import '../login_screen.dart';
 import '../support/support_chat_screen.dart';
-import 'subscription_screen.dart';
 
 // TODO: placeholders - replace with MidMan's real support contact details before launch.
 const _supportEmail = 'support@midman.app';
@@ -115,15 +113,6 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _manageMembership(MidManUser user) async {
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => SubscriptionScreen(currentAccountType: user.accountType)),
-    );
-    if (changed == true) _reload();
-  }
-
-  String _formatDate(DateTime d) => DateFormat('d MMM yyyy').format(d.toLocal());
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -155,36 +144,29 @@ class _AccountScreenState extends State<AccountScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () => _manageMembership(user),
-                child: Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: MidManColors.ink,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.workspace_premium, color: MidManColors.gold),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${user.accountType.toUpperCase()} Plan', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                            Text(
-                              user.isOnTrial
-                                  ? 'Free trial ends ${_formatDate(user.trialEndsAt!)} - tap to choose a plan'
-                                  : 'Manage your membership',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: MidManColors.ink,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.workspace_premium, color: MidManColors.gold),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Free account', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          Text(
+                            'Saved beneficiaries, full request history, and priority service - all included',
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ],
                       ),
-                      const Icon(Icons.chevron_right, color: Colors.white54),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               if (user.isBusinessAccount) ...[

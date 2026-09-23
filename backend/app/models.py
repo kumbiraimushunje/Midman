@@ -15,6 +15,10 @@ class UserRole(str, enum.Enum):
     admin = "admin"        # also handles approvals - there's no separate approver role
 
 
+# There are no more paid membership tiers - every account is free and gets full
+# benefits (saved beneficiaries, full request history, priority service). Kept
+# only because the `account_type` column still exists in the database; nothing
+# in the application branches on it anymore.
 class AccountType(str, enum.Enum):
     payg = "payg"
     standard = "standard"

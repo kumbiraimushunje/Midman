@@ -175,16 +175,6 @@ class ApiService {
     _decode(res);
   }
 
-  /// [accountType] is one of 'payg' | 'standard' | 'pro'.
-  static Future<MidManUser> changeSubscription(String accountType) async {
-    final res = await http.post(
-      Uri.parse('$_baseUrl/me/subscription'),
-      headers: await _authHeaders(),
-      body: jsonEncode({'account_type': accountType}),
-    );
-    return MidManUser.fromJson(_decode(res));
-  }
-
   /// Turns free text into a structured request draft. Never creates or
   /// submits anything itself - the customer still reviews and confirms
   /// every field before it becomes a real request.
