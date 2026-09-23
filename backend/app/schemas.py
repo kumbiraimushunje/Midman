@@ -189,6 +189,18 @@ class BeneficiaryCreate(BaseModel):
     linked_member_identifier: Optional[str] = None
 
 
+class LinkedAccountOut(BaseModel):
+    """The MidMan account a beneficiary is linked to - shown so the owner can
+    see at a glance which of their beneficiaries can act as an initiator."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: EmailStr
+    phone: str
+    username: Optional[str] = None
+
+
 class BeneficiaryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -198,6 +210,7 @@ class BeneficiaryOut(BaseModel):
     address: Optional[str] = None
     preferences: Optional[dict] = None
     linked_user_id: Optional[uuid.UUID] = None
+    linked_user: Optional[LinkedAccountOut] = None
     created_at: datetime
 
 

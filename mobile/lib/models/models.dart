@@ -486,8 +486,16 @@ class Beneficiary {
   final String relationshipType;
   final String? address;
   final String? linkedUserId;
+  final LinkedAccount? linkedAccount;
 
-  Beneficiary({required this.id, required this.fullName, required this.relationshipType, this.address, this.linkedUserId});
+  Beneficiary({
+    required this.id,
+    required this.fullName,
+    required this.relationshipType,
+    this.address,
+    this.linkedUserId,
+    this.linkedAccount,
+  });
 
   bool get isLinkedToAccount => linkedUserId != null;
 
@@ -497,6 +505,25 @@ class Beneficiary {
         relationshipType: json['relationship_type'],
         address: json['address'],
         linkedUserId: json['linked_user_id'],
+        linkedAccount: json['linked_user'] == null ? null : LinkedAccount.fromJson(json['linked_user']),
+      );
+}
+
+/// The MidMan account a linked beneficiary can be reached at - shown on the
+/// Family screen so the owner can see the connection (email/phone/username).
+class LinkedAccount {
+  final String id;
+  final String email;
+  final String phone;
+  final String? username;
+
+  LinkedAccount({required this.id, required this.email, required this.phone, this.username});
+
+  factory LinkedAccount.fromJson(Map<String, dynamic> json) => LinkedAccount(
+        id: json['id'],
+        email: json['email'],
+        phone: json['phone'],
+        username: json['username'],
       );
 }
 

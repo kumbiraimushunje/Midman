@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
 import '../../models/models.dart';
+import '../../theme.dart';
 
 class FamilyScreen extends StatefulWidget {
   const FamilyScreen({super.key});
@@ -137,6 +138,22 @@ class _FamilyScreenState extends State<FamilyScreen> {
                               children: [
                                 Text(b.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
                                 Text(b.relationshipType, style: const TextStyle(color: Colors.grey)),
+                                if (b.linkedAccount != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.link, size: 13, color: MidManColors.gold),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          'Linked · ${b.linkedAccount!.username ?? b.linkedAccount!.email}',
+                                          style: const TextStyle(fontSize: 12, color: MidManColors.gold),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),

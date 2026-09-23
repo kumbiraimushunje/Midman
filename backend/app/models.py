@@ -271,6 +271,7 @@ class Beneficiary(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("User", back_populates="beneficiaries", foreign_keys=[owner_id])
+    linked_user = relationship("User", foreign_keys=[linked_user_id])
     requests = relationship("ServiceRequest", back_populates="beneficiary")
 
 
