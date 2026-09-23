@@ -7,6 +7,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../api_service.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import '../requests/authorizer_approvals_screen.dart';
 import '../requests/category_picker_screen.dart';
 import '../requests/new_request_screen.dart';
 import '../requests/request_detail_screen.dart';
@@ -98,6 +99,22 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.notifications_active_outlined,
           text: 'Next property inspection reminder: ${DateFormat('d MMM yyyy').format(reminder.nextReminderAt.toLocal())}',
           color: MidManColors.gold,
+        ));
+      }
+    } catch (_) {
+      // Non-fatal.
+    }
+
+    try {
+      final pendingAuthorizations = await ApiService.pendingMyAuthorization();
+      if (pendingAuthorizations.isNotEmpty) {
+        final pending = pendingAuthorizations.length;
+        reminders.add(_HomeReminder(
+          icon: Icons.how_to_reg_outlined,
+          text: '$pending request${pending == 1 ? '' : 's'} need${pending == 1 ? 's' : ''} your approval',
+          color: MidManColors.warning,
+          onTap: (context) =>
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuthorizerApprovalsScreen())),
         ));
       }
     } catch (_) {

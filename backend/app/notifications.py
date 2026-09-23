@@ -44,6 +44,52 @@ def notify_decision(user: User, request: ServiceRequest, approved: bool, comment
     _send(user.email, subject, body)
 
 
+def notify_authorizer_approval_needed(authorizer: User, initiator: User, request: ServiceRequest) -> None:
+    """Sent to the authorizer (e.g. the parent/relative paying) when their
+    beneficiary raises a Family Care & Child Support request that needs the
+    authorizer's sign-off before MidMan reviews it."""
+    subject = f"{initiator.full_name} needs your approval - {request.request_number}"
+    body = (
+        f"Hi {authorizer.full_name},\n\n"
+        f"{initiator.full_name}, who has you listed as their authorizer on MidMan, has raised a request "
+        f"\"{request.title}\" ({request.request_number}) that needs your approval before MidMan can review it.\n\n"
+        f"Open the MidMan app to approve or decline it.\n\nMidMan"
+    )
+    _send(authorizer.email, subject, body)
+
+
+def notify_authorizer_decision(initiator: User, authorizer: User, request: ServiceRequest, approved: bool, comment: str | None) -> None:
+    """Sent to the beneficiary/initiator once their authorizer has decided."""
+    subject = f"{authorizer.full_name} {'approved' if approved else 'declined'} your request - {request.request_number}"
+    body = (
+        f"Hi {initiator.full_name},\n\n"
+        f"{authorizer.full_name} has {'approved' if approved else 'declined'} your request "
+        f"\"{request.title}\" ({request.request_number})."
+        + (f"\n\nComment: {comment}" if comment else "")
+        + (
+            "\n\nIt now moves on to MidMan for final review."
+            if approved
+            else ""
+        )
+        + "\n\nMidMan"
+    )
+    _send(initiator.email, subject, body)
+
+
+def notify_admin_approval(user: User, request: ServiceRequest, approved: bool, comment: str | None) -> None:
+    """Every request needs a MidMan admin's approval before staff can start
+    executing it - this confirms that decision to the customer."""
+    subject = f"Your request was {'approved' if approved else 'declined'} by MidMan - {request.request_number}"
+    body = (
+        f"Hi {user.full_name},\n\n"
+        f"Your request \"{request.title}\" ({request.request_number}) has been "
+        f"{'approved by our team and staff will now start arranging it' if approved else 'declined by our team'}."
+        + (f"\n\nComment: {comment}" if comment else "")
+        + "\n\nMidMan"
+    )
+    _send(user.email, subject, body)
+
+
 def notify_payment_received(user: User, request: ServiceRequest, amount, currency: str) -> None:
     subject = f"Payment received - {request.request_number}"
     body = (

@@ -182,6 +182,11 @@ class BeneficiaryCreate(BaseModel):
     relationship_type: str
     address: Optional[str] = None
     preferences: Optional[dict] = None
+    # Member ID, email, or phone - if it matches an existing customer account,
+    # that account gets linked immediately as this beneficiary's MidMan login,
+    # letting them raise Family Care & Child Support requests as a beneficiary
+    # with the owner as their authorizer.
+    linked_member_identifier: Optional[str] = None
 
 
 class BeneficiaryOut(BaseModel):
@@ -192,7 +197,19 @@ class BeneficiaryOut(BaseModel):
     relationship_type: str
     address: Optional[str] = None
     preferences: Optional[dict] = None
+    linked_user_id: Optional[uuid.UUID] = None
     created_at: datetime
+
+
+class AuthorizerOut(BaseModel):
+    """A registered customer who has listed the current user as a beneficiary -
+    the current user can raise Family Care & Child Support requests "as a
+    beneficiary" with this person as their authorizer."""
+
+    id: uuid.UUID
+    full_name: str
+    member_id: str
+    relationship_type: str
 
 
 class ServiceRequestCreate(BaseModel):
@@ -205,6 +222,11 @@ class ServiceRequestCreate(BaseModel):
     beneficiary_id: Optional[uuid.UUID] = None
     amount: Optional[Decimal] = None
     currency: str = "USD"
+    # Set only when raising a Family Care & Child Support request "as a
+    # beneficiary" - must be a customer who has the requester linked as their
+    # beneficiary (see Beneficiary.linked_user_id). That customer must approve
+    # before a MidMan admin does.
+    authorizer_id: Optional[uuid.UUID] = None
 
     @field_validator("category")
     @classmethod
@@ -277,6 +299,10 @@ class ServiceRequestOut(BaseModel):
     beneficiary: Optional[BeneficiaryOut] = None
     events: list[RequestEventOut] = []
     evidence: list[EvidenceOut] = []
+    authorizer_id: Optional[uuid.UUID] = None
+    authorizer_approved_at: Optional[datetime] = None
+    admin_approved_at: Optional[datetime] = None
+    admin_approved_by_id: Optional[uuid.UUID] = None
 
 
 class DecisionRequest(BaseModel):

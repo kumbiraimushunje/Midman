@@ -45,6 +45,9 @@ from .models import (
     UserRole,
 )
 from .notifications import (
+    notify_admin_approval,
+    notify_authorizer_approval_needed,
+    notify_authorizer_decision,
     notify_company_kyc_decision,
     notify_decision,
     notify_kyc_decision,
@@ -54,6 +57,7 @@ from .notifications import (
 from .reminders import next_due_at, send_due_reminders
 from .reports import build_dashboard_report
 from .security import create_access_token, get_current_user, get_current_user_optional, hash_password, verify_password
+from .service_taxonomy import FAMILY_CARE_CATEGORIES
 from .uploads import UPLOAD_DIR, content_type_for, read_upload_bytes, save_upload
 
 app = FastAPI(title="MidMan API")
@@ -310,7 +314,23 @@ def create_beneficiary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    beneficiary = Beneficiary(owner_id=current_user.id, **payload.model_dump())
+    data = payload.model_dump()
+    identifier = data.pop("linked_member_identifier", None)
+    linked_user_id = None
+    if identifier:
+        match = (
+            db.query(User)
+            .filter(
+                or_(User.member_id == identifier, User.email == identifier, User.phone == identifier),
+                User.role == UserRole.customer,
+                User.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if match is not None and match.id != current_user.id:
+            linked_user_id = match.id
+
+    beneficiary = Beneficiary(owner_id=current_user.id, linked_user_id=linked_user_id, **data)
     db.add(beneficiary)
     db.commit()
     db.refresh(beneficiary)
@@ -320,6 +340,26 @@ def create_beneficiary(
 @app.get("/beneficiaries", response_model=list[schemas.BeneficiaryOut])
 def list_beneficiaries(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
+
+
+@app.get("/me/authorizers", response_model=list[schemas.AuthorizerOut])
+def list_my_authorizers(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Every customer who has listed the current user as a beneficiary of
+    theirs - each one can act as an authorizer for a Family Care & Child
+    Support request the current user raises "as a beneficiary"."""
+    links = db.query(Beneficiary).filter(Beneficiary.linked_user_id == current_user.id).all()
+    owner_ids = [link.owner_id for link in links]
+    owners = {u.id: u for u in db.query(User).filter(User.id.in_(owner_ids)).all()} if owner_ids else {}
+    return [
+        schemas.AuthorizerOut(
+            id=link.owner_id,
+            full_name=owners[link.owner_id].full_name,
+            member_id=owners[link.owner_id].member_id,
+            relationship_type=link.relationship_type,
+        )
+        for link in links
+        if link.owner_id in owners
+    ]
 
 
 # ---------- Service requests ----------
@@ -342,10 +382,24 @@ def create_service_request(
         if beneficiary is None:
             raise HTTPException(404, "Beneficiary not found")
 
+    authorizer = None
+    if payload.authorizer_id is not None:
+        if payload.category not in FAMILY_CARE_CATEGORIES:
+            raise HTTPException(400, "Only Family Care & Child Support requests can be raised as a beneficiary")
+        link = (
+            db.query(Beneficiary)
+            .filter(Beneficiary.owner_id == payload.authorizer_id, Beneficiary.linked_user_id == current_user.id)
+            .first()
+        )
+        if link is None:
+            raise HTTPException(403, "You're not registered as this customer's beneficiary")
+        authorizer = db.query(User).filter(User.id == payload.authorizer_id).first()
+
     req = ServiceRequest(
         request_number=generate_request_number(db),
         requester_id=current_user.id,
         beneficiary_id=payload.beneficiary_id,
+        authorizer_id=payload.authorizer_id,
         country=payload.country or current_user.country_of_residence,
         city=payload.city,
         category=payload.category,
@@ -357,7 +411,8 @@ def create_service_request(
     )
     db.add(req)
     db.flush()
-    db.add(RequestEvent(request_id=req.id, status=RequestStatus.requested, created_by_id=current_user.id))
+    event_note = f"Awaiting approval from {authorizer.full_name} before MidMan review" if authorizer is not None else None
+    db.add(RequestEvent(request_id=req.id, status=RequestStatus.requested, note=event_note, created_by_id=current_user.id))
     db.commit()
     db.refresh(req)
 
@@ -365,6 +420,8 @@ def create_service_request(
     background_tasks.add_task(
         notify_status_change, current_user, req, CUSTOMER_STAGE_MAP[RequestStatus.requested]
     )
+    if authorizer is not None:
+        background_tasks.add_task(notify_authorizer_approval_needed, authorizer, current_user, req)
     return req
 
 
@@ -401,6 +458,19 @@ def my_requests(current_user: User = Depends(get_current_user), db: Session = De
     if business_statuses is not None:
         query = query.filter(ServiceRequest.status.in_(business_statuses))
     return query.order_by(ServiceRequest.created_at.desc()).all()
+
+
+@app.get("/service-requests/pending-my-authorization", response_model=list[schemas.ServiceRequestOut])
+def pending_my_authorization(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Beneficiary-initiated requests waiting on the current user's sign-off
+    as authorizer."""
+    return (
+        db.query(ServiceRequest)
+        .filter(ServiceRequest.authorizer_id == current_user.id, ServiceRequest.authorizer_approved_at.is_(None))
+        .filter(ServiceRequest.status != RequestStatus.rejected)
+        .order_by(ServiceRequest.created_at.desc())
+        .all()
+    )
 
 
 @app.get("/service-requests/pending", response_model=list[schemas.ServiceRequestOut])
@@ -600,6 +670,126 @@ def reject_request(
     return req
 
 
+@app.post("/service-requests/{request_id}/authorizer-approve", response_model=schemas.ServiceRequestOut)
+def authorizer_approve_request(
+    request_id,
+    payload: schemas.DecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The authorizer (see ServiceRequest.authorizer_id) signs off on a
+    beneficiary-initiated request. Still needs a MidMan admin's approval
+    afterwards before staff can act on it."""
+    req = _get_request_or_404(request_id, db)
+    if req.authorizer_id != current_user.id:
+        raise HTTPException(403, "You're not the authorizer for this request")
+    req.authorizer_approved_at = datetime.utcnow()
+    db.add(RequestEvent(
+        request_id=req.id, status=req.status,
+        note=f"Approved by {current_user.full_name} (authorizer)" + (f": {payload.comment}" if payload.comment else ""),
+        created_by_id=current_user.id,
+    ))
+    record_audit(
+        db, current_user, "request.authorizer_approve", "service_request",
+        f"{current_user.full_name} approved {req.request_number} as authorizer", entity_id=req.id,
+    )
+    db.commit()
+    db.refresh(req)
+    background_tasks.add_task(notify_authorizer_decision, req.requester, current_user, req, True, payload.comment)
+    return req
+
+
+@app.post("/service-requests/{request_id}/authorizer-reject", response_model=schemas.ServiceRequestOut)
+def authorizer_reject_request(
+    request_id,
+    payload: schemas.DecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    req = _get_request_or_404(request_id, db)
+    if req.authorizer_id != current_user.id:
+        raise HTTPException(403, "You're not the authorizer for this request")
+    req.status = RequestStatus.rejected
+    req.decision_comment = payload.comment
+    req.decided_at = datetime.utcnow()
+    db.add(RequestEvent(
+        request_id=req.id, status=req.status,
+        note=f"Declined by {current_user.full_name} (authorizer)" + (f": {payload.comment}" if payload.comment else ""),
+        created_by_id=current_user.id,
+    ))
+    record_audit(
+        db, current_user, "request.authorizer_reject", "service_request",
+        f"{current_user.full_name} declined {req.request_number} as authorizer", entity_id=req.id,
+    )
+    db.commit()
+    db.refresh(req)
+    background_tasks.add_task(notify_authorizer_decision, req.requester, current_user, req, False, payload.comment)
+    return req
+
+
+@app.post("/service-requests/{request_id}/admin-approve", response_model=schemas.ServiceRequestOut)
+def admin_approve_request(
+    request_id,
+    payload: schemas.DecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Every request needs this before staff can start executing it (see the
+    gate in update_status below) - the customer sees it as a trace event on
+    their request and gets an email."""
+    if current_user.role != UserRole.admin:
+        raise HTTPException(403, "Admin only")
+    req = _get_request_or_404(request_id, db)
+    if req.authorizer_id is not None and req.authorizer_approved_at is None:
+        raise HTTPException(400, "Waiting on the beneficiary's authorizer to approve first")
+    req.admin_approved_at = datetime.utcnow()
+    req.admin_approved_by_id = current_user.id
+    note = f"Approved by MidMan admin {current_user.full_name} - staff can now start arranging this"
+    if payload.comment:
+        note += f": {payload.comment}"
+    db.add(RequestEvent(request_id=req.id, status=req.status, note=note, created_by_id=current_user.id))
+    record_audit(
+        db, current_user, "request.admin_approve", "service_request",
+        f"{current_user.full_name} approved {req.request_number} for staff to action", entity_id=req.id,
+    )
+    db.commit()
+    db.refresh(req)
+    background_tasks.add_task(notify_admin_approval, req.requester, req, True, payload.comment)
+    return req
+
+
+@app.post("/service-requests/{request_id}/admin-reject", response_model=schemas.ServiceRequestOut)
+def admin_reject_request(
+    request_id,
+    payload: schemas.DecisionRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(403, "Admin only")
+    req = _get_request_or_404(request_id, db)
+    req.status = RequestStatus.rejected
+    req.decision_comment = payload.comment
+    req.decided_at = datetime.utcnow()
+    db.add(RequestEvent(
+        request_id=req.id, status=req.status,
+        note=f"Rejected by MidMan admin {current_user.full_name}" + (f": {payload.comment}" if payload.comment else ""),
+        created_by_id=current_user.id,
+    ))
+    record_audit(
+        db, current_user, "request.admin_reject", "service_request",
+        f"{current_user.full_name} rejected {req.request_number}", entity_id=req.id,
+    )
+    db.commit()
+    db.refresh(req)
+    background_tasks.add_task(notify_admin_approval, req.requester, req, False, payload.comment)
+    return req
+
+
 @app.post("/service-requests/{request_id}/status", response_model=schemas.ServiceRequestOut)
 def update_status(
     request_id,
@@ -608,10 +798,13 @@ def update_status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Staff move a request through Arranging -> In Progress -> Completed -> Verified -> Closed."""
+    """Staff move a request through Arranging -> In Progress -> Completed -> Verified -> Closed -
+    only once a MidMan admin has approved it (admin_approve above)."""
     if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     req = _get_request_or_404(request_id, db)
+    if req.admin_approved_at is None:
+        raise HTTPException(400, "This request needs admin approval before it can be actioned")
     req.status = payload.status
     db.add(RequestEvent(request_id=req.id, status=payload.status, note=payload.note, created_by_id=current_user.id))
     record_audit(

@@ -175,7 +175,9 @@ class User(Base):
     deleted_at = Column(DateTime, nullable=True)  # soft delete - account deletion is a launch requirement
     deletion_reason = Column(String, nullable=True)  # optional feedback captured when the customer deletes their own account
 
-    beneficiaries = relationship("Beneficiary", back_populates="owner", cascade="all, delete-orphan")
+    beneficiaries = relationship(
+        "Beneficiary", back_populates="owner", cascade="all, delete-orphan", foreign_keys="Beneficiary.owner_id"
+    )
     requests_made = relationship(
         "ServiceRequest", back_populates="requester", foreign_keys="ServiceRequest.requester_id"
     )
@@ -252,6 +254,12 @@ class Beneficiary(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
+    # Set when this beneficiary was matched to a real MidMan customer account
+    # at creation time (looked up by member ID, email, or phone). That linked
+    # customer becomes able to raise requests "as a beneficiary" with the
+    # owner (`owner_id`) as their authorizer - see ServiceRequest.authorizer_id.
+    linked_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
     full_name = Column(String, nullable=False)
     relationship_type = Column(String, nullable=False)  # e.g. "mother", "child", "property", "sibling"
     address = Column(String, nullable=True)
@@ -262,7 +270,7 @@ class Beneficiary(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    owner = relationship("User", back_populates="beneficiaries")
+    owner = relationship("User", back_populates="beneficiaries", foreign_keys=[owner_id])
     requests = relationship("ServiceRequest", back_populates="beneficiary")
 
 
@@ -276,6 +284,18 @@ class ServiceRequest(Base):
     beneficiary_id = Column(UUID(as_uuid=True), ForeignKey("beneficiaries.id"), nullable=True)
     approver_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     assigned_staff_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    # Set only for a Family Care & Child Support request the requester raised
+    # "as a beneficiary" - the linked customer (see Beneficiary.linked_user_id)
+    # who must sign off before this goes to a MidMan admin. Null for a normal
+    # direct request.
+    authorizer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    authorizer_approved_at = Column(DateTime, nullable=True)
+
+    # Every request needs this before staff can move it past "requested" -
+    # see the admin-approve endpoint and update_status's gate on it.
+    admin_approved_at = Column(DateTime, nullable=True)
+    admin_approved_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
     category = Column(Enum(ServiceCategory), nullable=False)
     service_type = Column(String, nullable=True)  # the specific Level-3 pick within `category` - see service_taxonomy.py

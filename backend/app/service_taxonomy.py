@@ -180,3 +180,9 @@ SERVICE_TYPES_BY_CATEGORY = {cat["value"]: cat["service_types"] for group in SER
 
 # The only categories offered to customers/the AI concierge right now.
 ACTIVE_CATEGORIES = list(SERVICE_TYPES_BY_CATEGORY.keys())
+
+# Categories that can be raised "as a beneficiary" with an authorizer's
+# sign-off - see main.py's create_service_request.
+FAMILY_CARE_CATEGORIES = {
+    cat["value"] for group in SERVICE_GROUPS if group["label"] == "Family Care & Child Support" for cat in group["categories"]
+}

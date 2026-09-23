@@ -33,6 +33,7 @@ class StaffRequestDetailScreen extends StatefulWidget {
 class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
   late Future<ServiceRequest> _future;
   late Future<QuoteComparison?> _comparisonFuture;
+  late Future<MidManUser> _meFuture;
   String? _selectedStatus;
   final _noteController = TextEditingController();
   bool _busy = false;
@@ -43,6 +44,7 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
     super.initState();
     _future = ApiService.getRequest(widget.requestId);
     _comparisonFuture = ApiService.getQuoteComparison(widget.requestId);
+    _meFuture = ApiService.me();
   }
 
   void _reload() => setState(() {
@@ -65,6 +67,12 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
   }
 
   Future<void> _decide(bool approve) => _runAction(() => ApiService.decideRequest(
+        requestId: widget.requestId,
+        approve: approve,
+        comment: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+      ));
+
+  Future<void> _adminDecide(bool approve) => _runAction(() => ApiService.adminDecideRequest(
         requestId: widget.requestId,
         approve: approve,
         comment: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
@@ -274,42 +282,110 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
                   maxLines: 2,
                 ),
                 const SizedBox(height: 12),
-                if (req.status == 'approval_required')
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _busy ? null : () => _decide(false),
-                          child: const Text('Reject'),
+                FutureBuilder<MidManUser>(
+                  future: _meFuture,
+                  builder: (context, meSnapshot) {
+                    final isAdmin = meSnapshot.data?.role == 'admin';
+
+                    if (req.needsAuthorizerApproval) {
+                      return _InfoBanner(
+                        icon: Icons.hourglass_top_outlined,
+                        text: "Waiting on the beneficiary's authorizer to approve this before it can be admin-approved.",
+                      );
+                    }
+
+                    if (req.needsAdminApproval) {
+                      if (!isAdmin) {
+                        return const _InfoBanner(
+                          icon: Icons.hourglass_top_outlined,
+                          text: 'This request needs admin approval before you can action it.',
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _busy ? null : () => _adminDecide(false),
+                              child: const Text('Reject'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _busy ? null : () => _adminDecide(true),
+                              child: const Text('Admin approve'),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (req.status == 'approval_required')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: _busy ? null : () => _decide(false),
+                                    child: const Text('Reject'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: _busy ? null : () => _decide(true),
+                                    child: const Text('Approve'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedStatus,
+                          decoration: const InputDecoration(labelText: 'Move to status'),
+                          items: _allStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' ')))).toList(),
+                          onChanged: (v) => setState(() => _selectedStatus = v),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _busy ? null : () => _decide(true),
-                          child: const Text('Approve'),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _busy || _selectedStatus == null ? null : _updateStatus,
+                          child: _busy
+                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('Update status'),
                         ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedStatus,
-                  decoration: const InputDecoration(labelText: 'Move to status'),
-                  items: _allStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' ')))).toList(),
-                  onChanged: (v) => setState(() => _selectedStatus = v),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: _busy || _selectedStatus == null ? null : _updateStatus,
-                  child: _busy
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Update status'),
+                      ],
+                    );
+                  },
                 ),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoBanner({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFFF1EEE7), borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: MidManColors.warning),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+        ],
       ),
     );
   }

@@ -27,20 +27,40 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final nameController = TextEditingController();
     final relationshipController = TextEditingController();
     final addressController = TextEditingController();
+    final linkController = TextEditingController();
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Add beneficiary'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full name')),
-            const SizedBox(height: 12),
-            TextField(controller: relationshipController, decoration: const InputDecoration(labelText: 'Relationship (e.g. Mother, Child, Property)')),
-            const SizedBox(height: 12),
-            TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address (optional)')),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Full name')),
+              const SizedBox(height: 12),
+              TextField(controller: relationshipController, decoration: const InputDecoration(labelText: 'Relationship (e.g. Mother, Child, Property)')),
+              const SizedBox(height: 12),
+              TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Address (optional)')),
+              const SizedBox(height: 16),
+              TextField(
+                controller: linkController,
+                decoration: const InputDecoration(
+                  labelText: "Link to their MidMan account (optional)",
+                  hintText: 'Their member ID, email, or phone',
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  "If they have a MidMan account, linking lets them start Family Care & Child Support "
+                  'requests as your beneficiary, which you approve before MidMan does.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
@@ -51,12 +71,21 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
     if (result == true && nameController.text.trim().isNotEmpty) {
       try {
-        await ApiService.createBeneficiary(
+        final saved = await ApiService.createBeneficiary(
           fullName: nameController.text.trim(),
           relationshipType: relationshipController.text.trim().isEmpty ? 'Other' : relationshipController.text.trim(),
           address: addressController.text.trim().isEmpty ? null : addressController.text.trim(),
+          linkedMemberIdentifier: linkController.text.trim().isEmpty ? null : linkController.text.trim(),
         );
         _reload();
+        if (!mounted) return;
+        if (linkController.text.trim().isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(saved.isLinkedToAccount
+                ? 'Linked to their MidMan account.'
+                : "Couldn't find a MidMan account matching that - beneficiary saved without a link."),
+          ));
+        }
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

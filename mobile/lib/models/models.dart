@@ -485,14 +485,37 @@ class Beneficiary {
   final String fullName;
   final String relationshipType;
   final String? address;
+  final String? linkedUserId;
 
-  Beneficiary({required this.id, required this.fullName, required this.relationshipType, this.address});
+  Beneficiary({required this.id, required this.fullName, required this.relationshipType, this.address, this.linkedUserId});
+
+  bool get isLinkedToAccount => linkedUserId != null;
 
   factory Beneficiary.fromJson(Map<String, dynamic> json) => Beneficiary(
         id: json['id'],
         fullName: json['full_name'],
         relationshipType: json['relationship_type'],
         address: json['address'],
+        linkedUserId: json['linked_user_id'],
+      );
+}
+
+/// A registered customer who has listed the current user as a beneficiary -
+/// the current user can raise a Family Care & Child Support request "as a
+/// beneficiary" with this person as their authorizer.
+class Authorizer {
+  final String id;
+  final String fullName;
+  final String memberId;
+  final String relationshipType;
+
+  Authorizer({required this.id, required this.fullName, required this.memberId, required this.relationshipType});
+
+  factory Authorizer.fromJson(Map<String, dynamic> json) => Authorizer(
+        id: json['id'],
+        fullName: json['full_name'],
+        memberId: json['member_id'],
+        relationshipType: json['relationship_type'],
       );
 }
 
@@ -600,6 +623,10 @@ class ServiceRequest {
   final Beneficiary? beneficiary;
   final List<RequestEvent> events;
   final List<EvidenceOut> evidence;
+  final String? authorizerId;
+  final DateTime? authorizerApprovedAt;
+  final DateTime? adminApprovedAt;
+  final String? adminApprovedById;
 
   ServiceRequest({
     required this.id,
@@ -621,7 +648,14 @@ class ServiceRequest {
     this.beneficiary,
     required this.events,
     required this.evidence,
+    this.authorizerId,
+    this.authorizerApprovedAt,
+    this.adminApprovedAt,
+    this.adminApprovedById,
   });
+
+  bool get needsAuthorizerApproval => status != 'rejected' && authorizerId != null && authorizerApprovedAt == null;
+  bool get needsAdminApproval => status != 'rejected' && adminApprovedAt == null && !needsAuthorizerApproval;
 
   factory ServiceRequest.fromJson(Map<String, dynamic> json) => ServiceRequest(
         id: json['id'],
@@ -655,6 +689,10 @@ class ServiceRequest {
         evidence: (json['evidence'] as List? ?? [])
             .map((e) => EvidenceOut.fromJson(e as Map<String, dynamic>))
             .toList(),
+        authorizerId: json['authorizer_id'],
+        authorizerApprovedAt: json['authorizer_approved_at'] == null ? null : DateTime.parse(json['authorizer_approved_at']),
+        adminApprovedAt: json['admin_approved_at'] == null ? null : DateTime.parse(json['admin_approved_at']),
+        adminApprovedById: json['admin_approved_by_id'],
       );
 }
 
@@ -922,5 +960,17 @@ ServiceCategoryOption? findServiceCategory(String value) {
     if (c.value == value) return c;
   }
   return null;
+}
+
+/// Whether a category belongs to "Family Care & Child Support" - the only
+/// group that can be raised "as a beneficiary" with an authorizer's sign-off.
+bool isFamilyCareCategory(String? value) {
+  if (value == null) return false;
+  for (final g in kServiceGroups) {
+    if (g.label == 'Family Care & Child Support') {
+      return g.categories.any((c) => c.value == value);
+    }
+  }
+  return false;
 }
 

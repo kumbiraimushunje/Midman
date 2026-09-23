@@ -428,17 +428,40 @@ class ApiService {
     required String fullName,
     required String relationshipType,
     String? address,
+    String? linkedMemberIdentifier,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/beneficiaries'),
       headers: await _authHeaders(),
-      body: jsonEncode({'full_name': fullName, 'relationship_type': relationshipType, 'address': address}),
+      body: jsonEncode({
+        'full_name': fullName,
+        'relationship_type': relationshipType,
+        'address': address,
+        'linked_member_identifier': linkedMemberIdentifier,
+      }),
     );
     return Beneficiary.fromJson(_decode(res));
   }
 
+  /// Registered customers who have the current user listed as their
+  /// beneficiary - each can act as an authorizer for a Family Care & Child
+  /// Support request the current user raises "as a beneficiary".
+  static Future<List<Authorizer>> listMyAuthorizers() async {
+    final res = await http.get(Uri.parse('$_baseUrl/me/authorizers'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => Authorizer.fromJson(e)).toList();
+  }
+
   static Future<List<ServiceRequest>> myRequests() async {
     final res = await http.get(Uri.parse('$_baseUrl/service-requests/mine'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => ServiceRequest.fromJson(e)).toList();
+  }
+
+  /// Beneficiary-initiated requests awaiting the current user's sign-off as
+  /// authorizer.
+  static Future<List<ServiceRequest>> pendingMyAuthorization() async {
+    final res = await http.get(Uri.parse('$_baseUrl/service-requests/pending-my-authorization'), headers: await _authHeaders());
     final data = _decode(res) as List;
     return data.map((e) => ServiceRequest.fromJson(e)).toList();
   }
@@ -467,6 +490,38 @@ class ApiService {
     return ServiceRequest.fromJson(_decode(res));
   }
 
+  /// The MidMan admin sign-off every request needs before staff can start
+  /// executing it.
+  static Future<ServiceRequest> adminDecideRequest({
+    required String requestId,
+    required bool approve,
+    String? comment,
+  }) async {
+    final path = approve ? 'admin-approve' : 'admin-reject';
+    final res = await http.post(
+      Uri.parse('$_baseUrl/service-requests/$requestId/$path'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'comment': comment}),
+    );
+    return ServiceRequest.fromJson(_decode(res));
+  }
+
+  /// The authorizer's sign-off on a beneficiary-initiated request, needed
+  /// before a MidMan admin will review it.
+  static Future<ServiceRequest> authorizerDecideRequest({
+    required String requestId,
+    required bool approve,
+    String? comment,
+  }) async {
+    final path = approve ? 'authorizer-approve' : 'authorizer-reject';
+    final res = await http.post(
+      Uri.parse('$_baseUrl/service-requests/$requestId/$path'),
+      headers: await _authHeaders(),
+      body: jsonEncode({'comment': comment}),
+    );
+    return ServiceRequest.fromJson(_decode(res));
+  }
+
   static Future<ServiceRequest> updateRequestStatus({
     required String requestId,
     required String status,
@@ -489,6 +544,7 @@ class ApiService {
     String? description,
     String? beneficiaryId,
     num? amount,
+    String? authorizerId,
   }) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/service-requests'),
@@ -502,6 +558,7 @@ class ApiService {
         'description': description,
         'beneficiary_id': beneficiaryId,
         'amount': amount,
+        'authorizer_id': authorizerId,
       }),
     );
     return ServiceRequest.fromJson(_decode(res));
