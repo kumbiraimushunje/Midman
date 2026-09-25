@@ -186,6 +186,30 @@ class ApiService {
     await _storage.write(key: 'access_token', value: data['access_token']);
   }
 
+  /// Always succeeds regardless of whether the email is registered - the
+  /// backend deliberately doesn't reveal that, so this just means "check
+  /// your email for a code" either way.
+  static Future<void> forgotPassword(String email) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    _decode(res);
+  }
+
+  /// Resets the password using the emailed code, and logs the customer in
+  /// with the fresh token the backend returns.
+  static Future<void> resetPassword({required String email, required String otp, required String newPassword}) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': otp, 'new_password': newPassword}),
+    );
+    final data = _decode(res);
+    await _storage.write(key: 'access_token', value: data['access_token']);
+  }
+
   static Future<void> logout() => _storage.delete(key: 'access_token');
 
   static Future<bool> isLoggedIn() async => (await _token) != null;

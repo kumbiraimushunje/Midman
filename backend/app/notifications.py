@@ -104,6 +104,17 @@ def notify_admin_request_pending(admin: User, requester: User, request: ServiceR
     _send(admin.email, subject, body)
 
 
+def notify_password_reset_otp(user: User, otp: str) -> None:
+    subject = "Your MidMan password reset code"
+    body = (
+        f"Hi {user.full_name},\n\n"
+        f"Your password reset code is: {otp}\n\n"
+        f"It expires in 10 minutes. If you didn't ask to reset your password, you can ignore this email.\n\n"
+        f"MidMan"
+    )
+    _send(user.email, subject, body)
+
+
 def notify_payment_received(user: User, request: ServiceRequest, amount, currency: str) -> None:
     subject = f"Payment received - {request.request_number}"
     body = (

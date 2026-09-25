@@ -34,6 +34,16 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+
 class DeleteAccountRequest(BaseModel):
     reason: Optional[str] = None
 

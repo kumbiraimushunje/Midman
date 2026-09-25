@@ -1,4 +1,5 @@
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Optional
@@ -35,6 +36,7 @@ from .models import (
     EvidenceType,
     InspectionReminder,
     KYCStatus,
+    PasswordResetOTP,
     Payment,
     PaymentProvider,
     PaymentStatus,
@@ -52,6 +54,7 @@ from .notifications import (
     notify_company_kyc_decision,
     notify_decision,
     notify_kyc_decision,
+    notify_password_reset_otp,
     notify_payment_received,
     notify_status_change,
 )
@@ -177,6 +180,54 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
     )
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(401, "Incorrect email, username, phone, or password")
+    return schemas.Token(access_token=create_access_token(str(user.id)))
+
+
+_OTP_EXPIRY_MINUTES = 10
+_OTP_MAX_ATTEMPTS = 5
+
+
+@app.post("/auth/forgot-password", status_code=204)
+def forgot_password(payload: schemas.ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Always responds the same way whether or not the email is registered,
+    so this can't be used to check which emails have a MidMan account."""
+    user = db.query(User).filter(User.email == payload.email, User.deleted_at.is_(None)).first()
+    if user is not None:
+        db.query(PasswordResetOTP).filter(
+            PasswordResetOTP.user_id == user.id, PasswordResetOTP.consumed_at.is_(None)
+        ).update({"consumed_at": datetime.utcnow()})
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        db.add(PasswordResetOTP(
+            user_id=user.id, code=code, expires_at=datetime.utcnow() + timedelta(minutes=_OTP_EXPIRY_MINUTES),
+        ))
+        db.commit()
+        background_tasks.add_task(notify_password_reset_otp, user, code)
+
+
+@app.post("/auth/reset-password", response_model=schemas.Token)
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    invalid_error = HTTPException(400, "Invalid or expired code")
+    user = db.query(User).filter(User.email == payload.email, User.deleted_at.is_(None)).first()
+    if user is None:
+        raise invalid_error
+    otp = (
+        db.query(PasswordResetOTP)
+        .filter(PasswordResetOTP.user_id == user.id, PasswordResetOTP.consumed_at.is_(None))
+        .order_by(PasswordResetOTP.created_at.desc())
+        .first()
+    )
+    if otp is None or otp.expires_at < datetime.utcnow():
+        raise invalid_error
+    if otp.attempts >= _OTP_MAX_ATTEMPTS:
+        raise HTTPException(400, "Too many attempts - request a new code")
+    if otp.code != payload.otp:
+        otp.attempts += 1
+        db.commit()
+        raise invalid_error
+
+    otp.consumed_at = datetime.utcnow()
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
     return schemas.Token(access_token=create_access_token(str(user.id)))
 
 

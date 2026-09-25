@@ -458,3 +458,23 @@ class InspectionReminder(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     last_sent_at = Column(DateTime, nullable=True)
+
+
+class PasswordResetOTP(Base):
+    """A one-time 6-digit code emailed to a customer who's forgotten their
+    password - see /auth/forgot-password and /auth/reset-password.
+    Single-use (consumed_at) and short-lived (expires_at); attempts is a
+    brute-force guard - too many wrong tries on one code invalidates it,
+    same as it expiring, so the customer has to request a fresh one."""
+
+    __tablename__ = "password_reset_otps"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    code = Column(String, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
