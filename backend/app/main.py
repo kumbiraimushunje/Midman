@@ -554,6 +554,18 @@ def pending_my_authorization(current_user: User = Depends(get_current_user), db:
     )
 
 
+@app.get("/service-requests/pending-my-payment", response_model=list[schemas.ServiceRequestOut])
+def pending_my_payment(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Beneficiary-initiated requests where the current user is the
+    authorizer and it's now awaiting their payment."""
+    return (
+        db.query(ServiceRequest)
+        .filter(ServiceRequest.authorizer_id == current_user.id, ServiceRequest.status == RequestStatus.payment_pending)
+        .order_by(ServiceRequest.created_at.desc())
+        .all()
+    )
+
+
 @app.get("/service-requests/pending", response_model=list[schemas.ServiceRequestOut])
 def pending_for_approval(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role not in (UserRole.admin, UserRole.staff):
@@ -573,6 +585,19 @@ def _get_request_or_404(request_id, db: Session) -> ServiceRequest:
     return req
 
 
+def _is_payer(req: ServiceRequest, current_user: User) -> bool:
+    """Who acts on a request's payment step. If an authorizer is set, they
+    financially back the beneficiary-initiated request - paying (and seeing
+    that it's needed) is their action, not the initiator's. Otherwise it's
+    whoever could already act as the requester: a business's spend-approval
+    role, or the requester themselves."""
+    if req.authorizer_id is not None:
+        return req.authorizer_id == current_user.id
+    if current_user.company_id is not None:
+        return req.requester.company_id == current_user.company_id and can_approve_spending(current_user)
+    return req.requester_id == current_user.id
+
+
 def _notify_admins_request_pending(db: Session, background_tasks: BackgroundTasks, req: ServiceRequest) -> None:
     """Emails every MidMan admin that a request is ready for their approval -
     called once a request actually reaches that point (immediately for a
@@ -590,8 +615,9 @@ def get_request(
 ):
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
+    is_authorizer = req.authorizer_id == current_user.id
     is_staff = current_user.role in (UserRole.staff, UserRole.admin)
-    if not (is_owner or is_staff):
+    if not (is_owner or is_authorizer or is_staff):
         raise HTTPException(403, "Not your request")
     return req
 
@@ -716,8 +742,8 @@ def approve_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.admin, UserRole.staff):
-        raise HTTPException(403, "Not authorized to approve")
+    if current_user.role != UserRole.admin:
+        raise HTTPException(403, "Admin only")
     req = _get_request_or_404(request_id, db)
     req.status = RequestStatus.payment_pending
     req.approver_id = current_user.id
@@ -742,8 +768,8 @@ def reject_request(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if current_user.role not in (UserRole.admin, UserRole.staff):
-        raise HTTPException(403, "Not authorized to approve")
+    if current_user.role != UserRole.admin:
+        raise HTTPException(403, "Admin only")
     req = _get_request_or_404(request_id, db)
     req.status = RequestStatus.rejected
     req.approver_id = current_user.id
@@ -949,14 +975,7 @@ def initiate_payment(
     cards, Flutterwave for international cards - their country is only ever
     used client-side as a suggested default, never to force one or the other."""
     req = _get_request_or_404(request_id, db)
-    if current_user.company_id is not None:
-        # Business accounts: paying is a spend-approval action, not an
-        # ownership one - only Administrator/Finance can trigger it, even
-        # for a request they raised themselves (e.g. a Requester can't).
-        allowed = req.requester.company_id == current_user.company_id and can_approve_spending(current_user)
-    else:
-        allowed = req.requester_id == current_user.id
-    if not allowed:
+    if not _is_payer(req, current_user):
         raise HTTPException(403, "Not your request")
     if req.status != RequestStatus.payment_pending:
         raise HTTPException(400, "This request isn't awaiting payment")
@@ -1013,8 +1032,9 @@ def latest_payment(
 ):
     req = _get_request_or_404(request_id, db)
     is_owner = req.requester_id == current_user.id
+    is_authorizer = req.authorizer_id == current_user.id
     is_staff = current_user.role in (UserRole.staff, UserRole.admin)
-    if not (is_owner or is_staff):
+    if not (is_owner or is_authorizer or is_staff):
         raise HTTPException(403, "Not your request")
     return (
         db.query(Payment)
@@ -1037,7 +1057,7 @@ def check_payment(
     customer-facing poll url, so confirmation there relies on its webhook
     (which itself re-verifies with Flutterwave before trusting anything)."""
     req = _get_request_or_404(request_id, db)
-    if req.requester_id != current_user.id:
+    if not _is_payer(req, current_user):
         raise HTTPException(403, "Not your request")
     payment = (
         db.query(Payment)

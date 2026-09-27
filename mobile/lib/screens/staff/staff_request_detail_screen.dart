@@ -326,23 +326,28 @@ class _StaffRequestDetailScreenState extends State<StaffRequestDetailScreen> {
                         if (req.status == 'approval_required')
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: _busy ? null : () => _decide(false),
-                                    child: const Text('Reject'),
+                            child: isAdmin
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: _busy ? null : () => _decide(false),
+                                          child: const Text('Reject'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: _busy ? null : () => _decide(true),
+                                          child: const Text('Approve'),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : const _InfoBanner(
+                                    icon: Icons.hourglass_top_outlined,
+                                    text: 'This request needs admin approval for its payment sign-off.',
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _busy ? null : () => _decide(true),
-                                    child: const Text('Approve'),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         DropdownButtonFormField<String>(
                           initialValue: _selectedStatus,

@@ -17,11 +17,22 @@ class RequestDetailScreen extends StatefulWidget {
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   late Future<ServiceRequest?> _future;
   bool _deleting = false;
+  MidManUser? _me;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _loadMe();
+  }
+
+  Future<void> _loadMe() async {
+    try {
+      final me = await ApiService.me();
+      if (mounted) setState(() => _me = me);
+    } catch (_) {
+      // Non-fatal - defaults to showing the payment section as actionable.
+    }
   }
 
   Future<ServiceRequest?> _load() => ApiService.getRequest(widget.requestId);
@@ -111,7 +122,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   ],
                   if (req.status == 'payment_pending') ...[
                     const SizedBox(height: 20),
-                    _PaymentSection(request: req, onPaid: _reload),
+                    _PaymentSection(
+                      request: req,
+                      onPaid: _reload,
+                      // Once an authorizer is set, paying is their action,
+                      // not the initiator's - default to allowed while _me
+                      // is still loading so the section doesn't flash.
+                      canPay: req.authorizerId == null || _me == null || req.authorizerId == _me!.id,
+                    ),
                   ],
                   const SizedBox(height: 24),
                   const Text('Timeline', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -224,7 +242,8 @@ class _EvidenceTile extends StatelessWidget {
 class _PaymentSection extends StatefulWidget {
   final ServiceRequest request;
   final VoidCallback onPaid;
-  const _PaymentSection({required this.request, required this.onPaid});
+  final bool canPay;
+  const _PaymentSection({required this.request, required this.onPaid, required this.canPay});
 
   @override
   State<_PaymentSection> createState() => _PaymentSectionState();
@@ -287,6 +306,29 @@ class _PaymentSectionState extends State<_PaymentSection> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.canPay) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(color: MidManColors.ink, borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Payment required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(
+              '${widget.request.currency} ${widget.request.amount}',
+              style: const TextStyle(color: MidManColors.gold, fontWeight: FontWeight.w700, fontSize: 22),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Your authorizer needs to complete this payment before it can proceed.',
+              style: TextStyle(color: Colors.white70, fontSize: 12.5),
+            ),
+          ],
+        ),
+      );
+    }
     return FutureBuilder<Payment?>(
       future: _latestFuture,
       builder: (context, snapshot) {

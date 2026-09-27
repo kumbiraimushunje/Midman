@@ -558,6 +558,14 @@ class ApiService {
     return data.map((e) => ServiceRequest.fromJson(e)).toList();
   }
 
+  /// Beneficiary-initiated requests where the current user is the authorizer
+  /// and it's now their turn to pay - see [ServiceRequest.authorizerId].
+  static Future<List<ServiceRequest>> pendingMyPayment() async {
+    final res = await http.get(Uri.parse('$_baseUrl/service-requests/pending-my-payment'), headers: await _authHeaders());
+    final data = _decode(res) as List;
+    return data.map((e) => ServiceRequest.fromJson(e)).toList();
+  }
+
   /// Staff/admin only. [adminApproved] false = Queue (still awaiting a
   /// MidMan admin's decision), true = Approvals (admin has cleared it for
   /// staff to work). [status] additionally filters by a RequestStatus value

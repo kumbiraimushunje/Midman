@@ -8,8 +8,10 @@ import 'staff_request_detail_screen.dart';
 /// Every request a MidMan admin has cleared for staff to work - moves here
 /// from the Queue once admin-approved. Requests flagged for a payment/spend
 /// sign-off (status == approval_required) get the quick Approve/Reject
-/// actions inline; everything else just shows its status, tap through to
-/// Request Detail to action it.
+/// actions inline for an admin viewer; a staff viewer sees the same list
+/// read-only (a status badge instead) since only admin decides those -
+/// staff's job here is limited to seeing details, attaching evidence, and
+/// moving status forward from Request Detail.
 class StaffApprovalsScreen extends StatefulWidget {
   const StaffApprovalsScreen({super.key});
 
@@ -19,11 +21,22 @@ class StaffApprovalsScreen extends StatefulWidget {
 
 class _StaffApprovalsScreenState extends State<StaffApprovalsScreen> {
   late Future<List<ServiceRequest>> _future;
+  bool? _isAdmin;
 
   @override
   void initState() {
     super.initState();
     _future = ApiService.allRequests(adminApproved: true);
+    _loadMe();
+  }
+
+  Future<void> _loadMe() async {
+    try {
+      final me = await ApiService.me();
+      if (mounted) setState(() => _isAdmin = me.role == 'admin');
+    } catch (_) {
+      if (mounted) setState(() => _isAdmin = false);
+    }
   }
 
   void _reload() => setState(() {
@@ -97,6 +110,7 @@ class _StaffApprovalsScreenState extends State<StaffApprovalsScreen> {
                     itemBuilder: (context, i) {
                       final r = requests[i];
                       final needsPaymentSignOff = r.status == 'approval_required';
+                      final canDecide = needsPaymentSignOff && _isAdmin == true;
                       return Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -123,7 +137,7 @@ class _StaffApprovalsScreenState extends State<StaffApprovalsScreen> {
                                       ],
                                     ),
                                   ),
-                                  if (!needsPaymentSignOff)
+                                  if (!canDecide)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                       decoration: BoxDecoration(
@@ -136,7 +150,7 @@ class _StaffApprovalsScreenState extends State<StaffApprovalsScreen> {
                                 ],
                               ),
                             ),
-                            if (needsPaymentSignOff) ...[
+                            if (canDecide) ...[
                               const SizedBox(height: 12),
                               Row(
                                 children: [

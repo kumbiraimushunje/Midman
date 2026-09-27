@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../account/account_screen.dart';
 import 'reports_screen.dart';
+import 'staff_approvals_screen.dart';
 import 'staff_queue_screen.dart';
 
 class StaffHomeShell extends StatefulWidget {
@@ -14,10 +15,13 @@ class StaffHomeShell extends StatefulWidget {
 class _StaffHomeShellState extends State<StaffHomeShell> {
   int _index = 0;
 
-  static const _screens = [StaffQueueScreen(), ReportsScreen(), AccountScreen()];
+  // StaffApprovalsScreen shows read-only here (no Approve/Reject) - it
+  // hides those for any non-admin viewer, only admin decides those.
+  static const _screens = [StaffQueueScreen(), StaffApprovalsScreen(), ReportsScreen(), AccountScreen()];
 
   static const _items = [
     BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Queue'),
+    BottomNavigationBarItem(icon: Icon(Icons.fact_check_outlined), label: 'Approvals'),
     BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Reports'),
     BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Account'),
   ];

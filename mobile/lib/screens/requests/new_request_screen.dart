@@ -348,18 +348,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               const SizedBox(height: 16),
               const _InspectionReminderCard(),
             ],
-            if (isFamilyCareCategory(_category) && _authorizers.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _AuthorizerCard(
-                authorizers: _authorizers,
-                selectedAuthorizerId: _authorizerId,
-                busy: _loading,
-                enabled: _me == null || userCanCreateRequest(_me!),
-                onAuthorizerChanged: (v) => setState(() => _authorizerId = v),
-                onSubmitDirect: () => _submit(authorizerId: null),
-                onSubmitAsBeneficiary: () => _submit(authorizerId: _authorizerId ?? _authorizers.first.id),
-              ),
-            ],
             const SizedBox(height: 16),
             if (_loadingBeneficiaries)
               const LinearProgressIndicator()
@@ -409,8 +397,19 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
             const SizedBox(height: 24),
             // For Family Care & Child Support with an available authorizer, the
             // "How should this be sent?" card's two buttons are the submit
-            // action - there's no separate generic submit button in that case.
-            if (!(isFamilyCareCategory(_category) && _authorizers.isNotEmpty))
+            // action, and they're the last thing on the page - there's no
+            // separate generic submit button in that case.
+            if (isFamilyCareCategory(_category) && _authorizers.isNotEmpty)
+              _AuthorizerCard(
+                authorizers: _authorizers,
+                selectedAuthorizerId: _authorizerId,
+                busy: _loading,
+                enabled: _me == null || userCanCreateRequest(_me!),
+                onAuthorizerChanged: (v) => setState(() => _authorizerId = v),
+                onSubmitDirect: () => _submit(authorizerId: null),
+                onSubmitAsBeneficiary: () => _submit(authorizerId: _authorizerId ?? _authorizers.first.id),
+              )
+            else
               ElevatedButton(
                 onPressed: (_loading || (_me != null && !userCanCreateRequest(_me!))) ? null : () => _submit(authorizerId: null),
                 child: _loading
@@ -458,12 +457,6 @@ class _AuthorizerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('How should this be sent?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(height: 6),
-          Text(
-            'Submit directly goes straight to a MidMan admin. Starting it as a beneficiary sends it to your '
-            "authorizer's approval first, then a MidMan admin.",
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
           if (authorizers.length > 1) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -483,7 +476,7 @@ class _AuthorizerCard extends StatelessWidget {
                   onPressed: canTap ? onSubmitDirect : null,
                   child: busy
                       ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Submit directly'),
+                      : const Text('Send Request'),
                 ),
               ),
               const SizedBox(width: 12),

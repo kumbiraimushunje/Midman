@@ -70,7 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final requests = await ApiService.myRequests();
-      final pendingRequests = requests.where((r) => r.status == 'payment_pending').toList();
+      // Once an authorizer is set, paying is their action, not the
+      // initiator's - so a beneficiary-initiated request drops out of this
+      // reminder for the initiator and shows up in the authorizer's instead
+      // (see the pendingMyPayment block below).
+      final pendingRequests = requests.where((r) => r.status == 'payment_pending' && r.authorizerId == null).toList();
       if (pendingRequests.isNotEmpty) {
         final pending = pendingRequests.length;
         reminders.add(_HomeReminder(
@@ -115,6 +119,23 @@ class _HomeScreenState extends State<HomeScreen> {
           color: MidManColors.warning,
           onTap: (context) =>
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AuthorizerApprovalsScreen())),
+        ));
+      }
+    } catch (_) {
+      // Non-fatal.
+    }
+
+    try {
+      final pendingPayments = await ApiService.pendingMyPayment();
+      if (pendingPayments.isNotEmpty) {
+        final pending = pendingPayments.length;
+        reminders.add(_HomeReminder(
+          icon: Icons.payments_outlined,
+          text: '$pending request${pending == 1 ? '' : 's'} you authorized ${pending == 1 ? 'is' : 'are'} awaiting your payment',
+          color: MidManColors.gold,
+          onTap: (context) => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => RequestDetailScreen(requestId: pendingPayments.first.id),
+          )),
         ));
       }
     } catch (_) {
