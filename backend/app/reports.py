@@ -24,13 +24,6 @@ def build_dashboard_report(db: Session) -> dict:
     requests_by_category = dict(
         db.query(ServiceRequest.category, func.count(ServiceRequest.id)).group_by(ServiceRequest.category).all()
     )
-    customers_by_tier = dict(
-        db.query(User.account_type, func.count(User.id))
-        .filter(User.role == UserRole.customer, User.deleted_at.is_(None))
-        .group_by(User.account_type)
-        .all()
-    )
-
     total_requested = db.query(func.coalesce(func.sum(ServiceRequest.amount), 0)).scalar() or Decimal(0)
     total_completed = (
         db.query(func.coalesce(func.sum(ServiceRequest.amount), 0))
@@ -59,7 +52,6 @@ def build_dashboard_report(db: Session) -> dict:
         "new_customers_last_30_days": new_customers_last_30_days,
         "requests_by_status": [{"status": s.value, "count": c} for s, c in requests_by_status.items()],
         "requests_by_category": [{"category": cat.value, "count": c} for cat, c in requests_by_category.items()],
-        "customers_by_tier": [{"account_type": t.value, "count": c} for t, c in customers_by_tier.items()],
         "total_amount_requested": total_requested,
         "total_amount_completed": total_completed,
         "high_risk_requests": high_risk_requests,

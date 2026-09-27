@@ -116,11 +116,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         counts: report.requestsByCategory,
                         labelFor: _categoryLabel,
                       ),
-                      _BreakdownSection(
-                        title: 'Customers by plan',
-                        counts: report.customersByTier,
-                        labelFor: (v) => v.toUpperCase(),
-                      ),
                       const SizedBox(height: 20),
                     ],
                   );

@@ -6,7 +6,6 @@ class DashboardReport {
   final int newCustomersLast30Days;
   final Map<String, int> requestsByStatus;
   final Map<String, int> requestsByCategory;
-  final Map<String, int> customersByTier;
   final num totalAmountRequested;
   final num totalAmountCompleted;
   final int highRiskRequests;
@@ -18,7 +17,6 @@ class DashboardReport {
     required this.newCustomersLast30Days,
     required this.requestsByStatus,
     required this.requestsByCategory,
-    required this.customersByTier,
     required this.totalAmountRequested,
     required this.totalAmountCompleted,
     required this.highRiskRequests,
@@ -46,7 +44,6 @@ class DashboardReport {
         newCustomersLast30Days: json['new_customers_last_30_days'],
         requestsByStatus: _countMap(json['requests_by_status'] as List?, 'status'),
         requestsByCategory: _countMap(json['requests_by_category'] as List?, 'category'),
-        customersByTier: _countMap(json['customers_by_tier'] as List?, 'account_type'),
         totalAmountRequested: _toNum(json['total_amount_requested']),
         totalAmountCompleted: _toNum(json['total_amount_completed']),
         highRiskRequests: json['high_risk_requests'],

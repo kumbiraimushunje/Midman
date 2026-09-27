@@ -362,18 +362,12 @@ class CategoryCount(BaseModel):
     count: int
 
 
-class TierCount(BaseModel):
-    account_type: str
-    count: int
-
-
 class DashboardReport(BaseModel):
     total_requests: int
     total_customers: int
     new_customers_last_30_days: int
     requests_by_status: list[StatusCount]
     requests_by_category: list[CategoryCount]
-    customers_by_tier: list[TierCount]
     total_amount_requested: Decimal
     total_amount_completed: Decimal
     high_risk_requests: int
@@ -414,6 +408,24 @@ class AdminUserOut(UserOut):
 
 class RoleChangeRequest(BaseModel):
     role: UserRole
+
+
+class AdminCreateUserRequest(BaseModel):
+    full_name: str
+    date_of_birth: date
+    email: EmailStr
+    phone: str
+    username: str
+    password: str
+    country_of_residence: str
+    role: UserRole
+
+    @field_validator("role")
+    @classmethod
+    def _staff_or_admin_only(cls, v: UserRole) -> UserRole:
+        if v not in (UserRole.staff, UserRole.admin):
+            raise ValueError("Can only create staff or admin accounts here")
+        return v
 
 
 class AuditLogOut(BaseModel):

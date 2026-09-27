@@ -440,6 +440,36 @@ class ApiService {
     return data.map((e) => MidManUser.fromJson(e)).toList();
   }
 
+  /// Admin only - provisions a new staff or admin account directly (unlike
+  /// [register], which always creates a customer). [role] must be 'staff' or
+  /// 'admin'.
+  static Future<MidManUser> createStaffUser({
+    required String fullName,
+    required String dateOfBirth, // yyyy-MM-dd
+    required String email,
+    required String phone,
+    required String username,
+    required String password,
+    required String countryOfResidence,
+    required String role,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/admin/users'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'full_name': fullName,
+        'date_of_birth': dateOfBirth,
+        'email': email,
+        'phone': phone,
+        'username': username,
+        'password': password,
+        'country_of_residence': countryOfResidence,
+        'role': role,
+      }),
+    );
+    return MidManUser.fromJson(_decode(res));
+  }
+
   static Future<MidManUser> changeUserRole({required String userId, required String role}) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/admin/users/$userId/role'),

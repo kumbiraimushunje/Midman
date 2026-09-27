@@ -1468,6 +1468,48 @@ def list_users(
     return query.order_by(User.created_at.desc()).limit(500).all()
 
 
+@app.post("/admin/users", response_model=schemas.AdminUserOut, status_code=201)
+def create_staff_user(
+    payload: schemas.AdminCreateUserRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin-only path for provisioning MidMan staff/admin accounts - unlike
+    /auth/register (always role=customer, self-service), this is how internal
+    accounts come to exist at all: staff never self-register."""
+    _require_admin(current_user)
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(400, "Email already registered")
+    if db.query(User).filter(User.phone == payload.phone).first():
+        raise HTTPException(400, "Phone already registered")
+    if db.query(User).filter(User.username == payload.username).first():
+        raise HTTPException(400, "Username already taken")
+
+    member_id = generate_member_id(db, payload.full_name)
+    user = User(
+        member_id=member_id,
+        full_name=payload.full_name,
+        date_of_birth=payload.date_of_birth,
+        email=payload.email,
+        phone=payload.phone,
+        username=payload.username,
+        password_hash=hash_password(payload.password),
+        country_of_residence=payload.country_of_residence,
+        role=payload.role,
+        kyc_status=KYCStatus.verified,
+    )
+    db.add(user)
+    db.flush()
+    record_audit(
+        db, current_user, "user.create", "user",
+        f"{current_user.full_name} created {user.full_name}'s {payload.role.value} account",
+        entity_id=user.id,
+    )
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @app.post("/admin/users/{user_id}/role", response_model=schemas.AdminUserOut)
 def change_user_role(
     user_id,

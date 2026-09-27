@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../api_service.dart';
+import '../../country_data.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
 import 'audit_log_screen.dart';
 
 const _roleOptions = [
   ('customer', 'Customer'),
+  ('staff', 'Staff'),
+  ('admin', 'Admin'),
+];
+
+const _creatableRoleOptions = [
   ('staff', 'Staff'),
   ('admin', 'Admin'),
 ];
@@ -60,6 +66,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  Future<void> _createUser() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const _CreateUserScreen()),
+    );
+    if (created == true) _reload();
+  }
+
   Future<void> _changeRole(MidManUser user, String role) async {
     Navigator.of(context).pop();
     setState(() => _busy = true);
@@ -100,6 +113,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: Row(
               children: [
                 const Expanded(child: Text('Users', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+                IconButton(
+                  icon: const Icon(Icons.person_add_alt_1),
+                  tooltip: 'Add staff or admin user',
+                  onPressed: _createUser,
+                ),
                 IconButton(
                   icon: const Icon(Icons.history),
                   tooltip: 'Audit log',
@@ -315,6 +333,189 @@ class _ManageUserSheet extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateUserScreen extends StatefulWidget {
+  const _CreateUserScreen();
+
+  @override
+  State<_CreateUserScreen> createState() => _CreateUserScreenState();
+}
+
+class _CreateUserScreenState extends State<_CreateUserScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _fullName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _username = TextEditingController();
+  final _password = TextEditingController();
+  DateTime? _dob;
+  String? _countryName;
+  String _dialCode = '+263';
+  String _role = 'staff';
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _fullName.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _username.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDob() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime(now.year - 100),
+      lastDate: DateTime(now.year - 16, now.month, now.day),
+      initialDate: DateTime(now.year - 25),
+    );
+    if (picked != null) setState(() => _dob = picked);
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate() || _dob == null || _countryName == null) {
+      setState(() => _error = _dob == null
+          ? 'Please select a date of birth'
+          : _countryName == null
+              ? 'Please select a country of residence'
+              : null);
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await ApiService.createStaffUser(
+        fullName: _fullName.text.trim(),
+        dateOfBirth:
+            '${_dob!.year.toString().padLeft(4, '0')}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}',
+        email: _email.text.trim(),
+        phone: '$_dialCode${_phone.text.trim()}',
+        username: _username.text.trim(),
+        password: _password.text,
+        countryOfResidence: _countryName!,
+        role: _role,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Add staff or admin user')),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              TextFormField(
+                controller: _fullName,
+                decoration: const InputDecoration(labelText: 'Full name'),
+                validator: _required,
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _pickDob,
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Date of birth'),
+                  child: Text(_dob == null ? 'Select date' : '${_dob!.day}/${_dob!.month}/${_dob!.year}'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 130,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _dialCode,
+                      decoration: const InputDecoration(labelText: 'Code'),
+                      isExpanded: true,
+                      items: kCountries
+                          .map((c) => DropdownMenuItem(value: c.dialCode, child: Text(c.dialLabel, overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (v) => setState(() => _dialCode = v ?? _dialCode),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Phone number'),
+                      validator: _required,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _username,
+                decoration: const InputDecoration(labelText: 'Username'),
+                validator: _required,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Temporary password'),
+                validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _countryName,
+                decoration: const InputDecoration(labelText: 'Country of residence'),
+                isExpanded: true,
+                items: kCountries.map((c) => DropdownMenuItem(value: c.name, child: Text('${c.flag} ${c.name}'))).toList(),
+                onChanged: (v) => setState(() => _countryName = v),
+                validator: (v) => v == null ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: _role,
+                decoration: const InputDecoration(labelText: 'Role'),
+                items: _creatableRoleOptions.map((r) => DropdownMenuItem(value: r.$1, child: Text(r.$2))).toList(),
+                onChanged: (v) => setState(() => _role = v ?? _role),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Text(_error!, style: const TextStyle(color: MidManColors.danger)),
+              ],
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _loading ? null : _submit,
+                child: _loading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Create account'),
+              ),
+            ],
+          ),
         ),
       ),
     );
