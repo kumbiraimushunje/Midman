@@ -18,11 +18,11 @@ class _StaffQueueScreenState extends State<StaffQueueScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiService.allRequests();
+    _future = ApiService.allRequests(adminApproved: false);
   }
 
   void _reload() => setState(() {
-        _future = ApiService.allRequests();
+        _future = ApiService.allRequests(adminApproved: false);
       });
 
   @override
@@ -35,6 +35,14 @@ class _StaffQueueScreenState extends State<StaffQueueScreen> {
             child: Row(
               children: [
                 Expanded(child: Text('Request Queue', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600))),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Row(
+              children: [
+                Expanded(child: Text('Awaiting admin approval', style: TextStyle(color: Colors.grey, fontSize: 13))),
               ],
             ),
           ),
@@ -52,7 +60,7 @@ class _StaffQueueScreenState extends State<StaffQueueScreen> {
                   }
                   final requests = snapshot.data ?? [];
                   if (requests.isEmpty) {
-                    return ListView(children: const [Padding(padding: EdgeInsets.all(48), child: Center(child: Text('No requests in the queue.')))]);
+                    return ListView(children: const [Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Nothing awaiting admin approval.')))]);
                   }
                   return ListView.separated(
                     padding: const EdgeInsets.all(20),

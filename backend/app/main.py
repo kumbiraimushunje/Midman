@@ -501,15 +501,23 @@ def create_service_request(
 @app.get("/service-requests", response_model=list[schemas.ServiceRequestOut])
 def list_all_requests(
     status_filter: RequestStatus | None = Query(None, alias="status"),
+    admin_approved: Optional[bool] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """The staff/admin work queue - every request, optionally filtered by status."""
+    """The staff/admin work list. Queue (admin_approved=false) is the intake
+    list of requests still awaiting a MidMan admin's decision; Approvals
+    (admin_approved=true) is everything admin has cleared - since a request
+    can only ever reach approval_required (a payment/spend sign-off flag)
+    after admin has approved it (see update_status's gate), that older
+    feature's items are always already included here too."""
     if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     query = db.query(ServiceRequest).join(User, ServiceRequest.requester_id == User.id)
     if status_filter is not None:
         query = query.filter(ServiceRequest.status == status_filter)
+    if admin_approved is not None:
+        query = query.filter(ServiceRequest.admin_approved_at.isnot(None) if admin_approved else ServiceRequest.admin_approved_at.is_(None))
     return query.order_by(ServiceRequest.created_at.desc()).all()
 
 

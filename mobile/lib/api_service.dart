@@ -528,11 +528,16 @@ class ApiService {
     return data.map((e) => ServiceRequest.fromJson(e)).toList();
   }
 
-  /// Staff/admin only - the full work queue, optionally filtered by status
-  /// (a RequestStatus value like 'approval_required', 'in_progress', ...).
-  static Future<List<ServiceRequest>> allRequests({String? status}) async {
+  /// Staff/admin only. [adminApproved] false = Queue (still awaiting a
+  /// MidMan admin's decision), true = Approvals (admin has cleared it for
+  /// staff to work). [status] additionally filters by a RequestStatus value
+  /// (e.g. 'approval_required' for the payment/spend sign-off flag).
+  static Future<List<ServiceRequest>> allRequests({String? status, bool? adminApproved}) async {
     final uri = Uri.parse('$_baseUrl/service-requests').replace(
-      queryParameters: status != null ? {'status': status} : null,
+      queryParameters: {
+        if (status != null) 'status': status,
+        if (adminApproved != null) 'admin_approved': adminApproved.toString(),
+      },
     );
     final res = await http.get(uri, headers: await _authHeaders());
     final data = _decode(res) as List;
