@@ -94,6 +94,33 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
   }
 
+  Future<void> _deleteBeneficiary(Beneficiary b) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove beneficiary'),
+        content: Text('Remove ${b.fullName} from your beneficiaries?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: MidManColors.danger),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ApiService.deleteBeneficiary(b.id);
+      _reload();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -156,6 +183,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
                                 ],
                               ],
                             ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: MidManColors.danger),
+                            tooltip: 'Remove beneficiary',
+                            onPressed: () => _deleteBeneficiary(b),
                           ),
                         ],
                       ),

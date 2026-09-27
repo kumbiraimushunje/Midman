@@ -50,7 +50,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   bool _loading = false;
   bool _loadingBeneficiaries = true;
   List<Authorizer> _authorizers = [];
-  String? _authorizerId; // non-null means "submit as beneficiary" of this authorizer
+  String? _authorizerId; // which authorizer is picked for the "as beneficiary" submit button
   String? _error;
   PlatformFile? _attachedFile;
   MidManUser? _me;
@@ -92,7 +92,12 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   Future<void> _loadAuthorizers() async {
     try {
       final list = await ApiService.listMyAuthorizers();
-      if (mounted) setState(() => _authorizers = list);
+      if (mounted) {
+        setState(() {
+          _authorizers = list;
+          if (list.isNotEmpty) _authorizerId = list.first.id;
+        });
+      }
     } catch (_) {
       // Non-fatal - the form still works as a direct request without it.
     }
@@ -132,7 +137,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     setState(() {
       _category = value;
       _serviceType = null;
-      if (!isFamilyCareCategory(value)) _authorizerId = null;
       _syncExtraFieldControllers();
     });
   }
@@ -183,7 +187,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     return combined.isEmpty ? null : combined;
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit({required String? authorizerId}) async {
     if (_city == null || _category == null || _titleController.text.trim().isEmpty) {
       setState(() => _error = 'Please choose a city, a category and a short title');
       return;
@@ -201,7 +205,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         description: _composedDescription(),
         beneficiaryId: _beneficiaryId,
         amount: _amountController.text.trim().isEmpty ? null : num.tryParse(_amountController.text.trim()),
-        authorizerId: _authorizerId,
+        authorizerId: authorizerId,
       );
 
       final attached = _attachedFile;
@@ -349,7 +353,11 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               _AuthorizerCard(
                 authorizers: _authorizers,
                 selectedAuthorizerId: _authorizerId,
-                onChanged: (v) => setState(() => _authorizerId = v),
+                busy: _loading,
+                enabled: _me == null || userCanCreateRequest(_me!),
+                onAuthorizerChanged: (v) => setState(() => _authorizerId = v),
+                onSubmitDirect: () => _submit(authorizerId: null),
+                onSubmitAsBeneficiary: () => _submit(authorizerId: _authorizerId ?? _authorizers.first.id),
               ),
             ],
             const SizedBox(height: 16),
@@ -399,12 +407,16 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
               Text(_error!, style: const TextStyle(color: Colors.red)),
             ],
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: (_loading || (_me != null && !userCanCreateRequest(_me!))) ? null : _submit,
-              child: _loading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Submit request'),
-            ),
+            // For Family Care & Child Support with an available authorizer, the
+            // "How should this be sent?" card's two buttons are the submit
+            // action - there's no separate generic submit button in that case.
+            if (!(isFamilyCareCategory(_category) && _authorizers.isNotEmpty))
+              ElevatedButton(
+                onPressed: (_loading || (_me != null && !userCanCreateRequest(_me!))) ? null : () => _submit(authorizerId: null),
+                child: _loading
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Submit request'),
+              ),
           ],
         ),
       ),
@@ -415,21 +427,30 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 /// Lets a customer who has an authorizer (someone who's listed them as a
 /// beneficiary) choose between a direct request and raising it "as a
 /// beneficiary" - which needs that authorizer's sign-off before MidMan
-/// reviews it. Only shown for Family Care & Child Support categories.
+/// reviews it. Only shown for Family Care & Child Support categories. Each
+/// button submits immediately - there's no separate confirm step.
 class _AuthorizerCard extends StatelessWidget {
   final List<Authorizer> authorizers;
   final String? selectedAuthorizerId;
-  final ValueChanged<String?> onChanged;
+  final bool busy;
+  final bool enabled;
+  final ValueChanged<String?> onAuthorizerChanged;
+  final VoidCallback onSubmitDirect;
+  final VoidCallback onSubmitAsBeneficiary;
 
   const _AuthorizerCard({
     required this.authorizers,
     required this.selectedAuthorizerId,
-    required this.onChanged,
+    required this.busy,
+    required this.enabled,
+    required this.onAuthorizerChanged,
+    required this.onSubmitDirect,
+    required this.onSubmitAsBeneficiary,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isBeneficiaryMode = selectedAuthorizerId != null;
+    final canTap = enabled && !busy;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
@@ -437,50 +458,45 @@ class _AuthorizerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('How should this be sent?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          Text(
+            'Submit directly goes straight to a MidMan admin. Starting it as a beneficiary sends it to your '
+            "authorizer's approval first, then a MidMan admin.",
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          if (authorizers.length > 1) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: selectedAuthorizerId,
+              decoration: const InputDecoration(labelText: 'If sent as beneficiary, to'),
+              items: authorizers
+                  .map((a) => DropdownMenuItem(value: a.id, child: Text('${a.fullName} (their ${a.relationshipType})')))
+                  .toList(),
+              onChanged: canTap ? onAuthorizerChanged : null,
+            ),
+          ],
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => onChanged(null),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: isBeneficiaryMode ? null : MidManColors.ink,
-                    foregroundColor: isBeneficiaryMode ? MidManColors.textDark : Colors.white,
-                  ),
-                  child: const Text('Submit directly'),
+                  onPressed: canTap ? onSubmitDirect : null,
+                  child: busy
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Submit directly'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => onChanged(authorizers.first.id),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: isBeneficiaryMode ? MidManColors.ink : null,
-                    foregroundColor: isBeneficiaryMode ? Colors.white : MidManColors.textDark,
-                  ),
-                  child: const Text('Start request as beneficiary'),
+                child: ElevatedButton(
+                  onPressed: canTap ? onSubmitAsBeneficiary : null,
+                  child: busy
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Start request as beneficiary'),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            isBeneficiaryMode
-                ? 'Your authorizer approves it first, then a MidMan admin reviews it.'
-                : 'Goes straight to a MidMan admin for approval - no authorizer involved.',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          if (isBeneficiaryMode) ...[
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              initialValue: selectedAuthorizerId,
-              decoration: const InputDecoration(labelText: 'Authorizer'),
-              items: authorizers
-                  .map((a) => DropdownMenuItem(value: a.id, child: Text('${a.fullName} (their ${a.relationshipType})')))
-                  .toList(),
-              onChanged: onChanged,
-            ),
-          ],
         ],
       ),
     );

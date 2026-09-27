@@ -498,6 +498,13 @@ class ApiService {
     return Beneficiary.fromJson(_decode(res));
   }
 
+  /// Fails with a 400 (surfaced via ApiException) if this beneficiary is
+  /// still used by an existing request.
+  static Future<void> deleteBeneficiary(String id) async {
+    final res = await http.delete(Uri.parse('$_baseUrl/beneficiaries/$id'), headers: await _authHeaders());
+    _decode(res);
+  }
+
   /// Registered customers who have the current user listed as their
   /// beneficiary - each can act as an authorizer for a Family Care & Child
   /// Support request the current user raises "as a beneficiary".

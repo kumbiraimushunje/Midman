@@ -394,6 +394,22 @@ def list_beneficiaries(current_user: User = Depends(get_current_user), db: Sessi
     return db.query(Beneficiary).filter(Beneficiary.owner_id == current_user.id).all()
 
 
+@app.delete("/beneficiaries/{beneficiary_id}", status_code=204)
+def delete_beneficiary(beneficiary_id, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    beneficiary = (
+        db.query(Beneficiary)
+        .filter(Beneficiary.id == beneficiary_id, Beneficiary.owner_id == current_user.id)
+        .first()
+    )
+    if beneficiary is None:
+        raise HTTPException(404, "Beneficiary not found")
+    in_use = db.query(ServiceRequest).filter(ServiceRequest.beneficiary_id == beneficiary.id).count()
+    if in_use > 0:
+        raise HTTPException(400, f"Can't delete - used by {in_use} existing request{'s' if in_use != 1 else ''}")
+    db.delete(beneficiary)
+    db.commit()
+
+
 @app.get("/me/authorizers", response_model=list[schemas.AuthorizerOut])
 def list_my_authorizers(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Every customer who has listed the current user as a beneficiary of
