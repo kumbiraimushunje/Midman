@@ -242,7 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
           initialCategory: result.category,
           prefillTitle: result.title,
           prefillDescription: result.description,
-          prefillAmount: result.amount,
           prefillBeneficiaryId: result.beneficiaryId,
           unmatchedBeneficiaryName: result.beneficiaryNameHint,
           aiHints: result.missingInfo,

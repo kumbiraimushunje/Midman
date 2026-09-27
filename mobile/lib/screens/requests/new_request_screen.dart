@@ -17,7 +17,6 @@ class NewRequestScreen extends StatefulWidget {
   final String? initialCategory;
   final String? prefillDescription;
   final String? prefillTitle;
-  final num? prefillAmount;
   final String? prefillBeneficiaryId;
   final String? unmatchedBeneficiaryName;
   final List<String> aiHints;
@@ -27,7 +26,6 @@ class NewRequestScreen extends StatefulWidget {
     this.initialCategory,
     this.prefillDescription,
     this.prefillTitle,
-    this.prefillAmount,
     this.prefillBeneficiaryId,
     this.unmatchedBeneficiaryName,
     this.aiHints = const [],
@@ -40,7 +38,6 @@ class NewRequestScreen extends StatefulWidget {
 class _NewRequestScreenState extends State<NewRequestScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
   final _extraFieldControllers = <String, TextEditingController>{};
   String? _category;
   String? _serviceType;
@@ -79,9 +76,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
     }
     if (widget.prefillTitle != null) {
       _titleController.text = widget.prefillTitle!;
-    }
-    if (widget.prefillAmount != null) {
-      _amountController.text = widget.prefillAmount.toString();
     }
     _syncExtraFieldControllers();
     _loadBeneficiaries();
@@ -145,7 +139,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _amountController.dispose();
     for (final c in _extraFieldControllers.values) {
       c.dispose();
     }
@@ -204,7 +197,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
         title: _titleController.text.trim(),
         description: _composedDescription(),
         beneficiaryId: _beneficiaryId,
-        amount: _amountController.text.trim().isEmpty ? null : num.tryParse(_amountController.text.trim()),
         authorizerId: authorizerId,
       );
 
@@ -377,12 +369,6 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
                 labelText: 'Details (optional)',
                 hintText: _categoryOption?.detailsHint ?? 'Anything else we should know',
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount, if known (optional)'),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
