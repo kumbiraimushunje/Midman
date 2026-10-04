@@ -4,6 +4,7 @@ import '../../api_service.dart';
 import '../../country_data.dart';
 import '../../models/models.dart';
 import '../../theme.dart';
+import '../../widgets/password_field.dart';
 
 class _EmployeesData {
   final MidManUser me;
@@ -412,10 +413,9 @@ class _AddEmployeeScreenState extends State<_AddEmployeeScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              PasswordField(
                 controller: _password,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Temporary password'),
+                labelText: 'Temporary password',
                 validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
               ),
               const SizedBox(height: 16),

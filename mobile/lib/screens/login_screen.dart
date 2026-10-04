@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api_service.dart';
+import '../widgets/password_field.dart';
 import 'business/business_register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
@@ -55,11 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: const InputDecoration(labelText: 'Email, username, or phone'),
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
+              PasswordField(controller: _passwordController, labelText: 'Password'),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(

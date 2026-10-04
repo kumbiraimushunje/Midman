@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api_service.dart';
 import '../country_data.dart';
+import '../widgets/password_field.dart';
 import 'login_screen.dart';
 
 /// Minimal KYC-on-registration form: full name, DOB, email, phone, password,
@@ -145,10 +146,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              PasswordField(
                 controller: _password,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
+                labelText: 'Password',
                 validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
               ),
               const SizedBox(height: 16),

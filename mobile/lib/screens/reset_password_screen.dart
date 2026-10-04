@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api_service.dart';
+import '../widgets/password_field.dart';
 import 'role_home_shell.dart';
 
 /// Step 2 of the forgot-password flow: enter the 6-digit code that was
@@ -77,17 +78,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 maxLength: 6,
                 decoration: const InputDecoration(labelText: '6-digit code'),
               ),
-              TextField(
-                controller: _newPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'New password'),
-              ),
+              PasswordField(controller: _newPasswordController, labelText: 'New password'),
               const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirm new password'),
-              ),
+              PasswordField(controller: _confirmPasswordController, labelText: 'Confirm new password'),
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!, style: const TextStyle(color: Colors.red)),
