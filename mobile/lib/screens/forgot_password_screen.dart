@@ -49,7 +49,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Enter the email on your MidMan account and we'll send you a code to reset your password.",
+                "Enter the email on your MidMen account and we'll send you a code to reset your password.",
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),

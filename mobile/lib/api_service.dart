@@ -111,7 +111,7 @@ class ApiService {
     _decode(res);
   }
 
-  /// Registers a MidMan Business account: the company itself plus the
+  /// Registers a MidMen Business account: the company itself plus the
   /// registrant as its first employee (Administrator role). Logs the
   /// registrant straight in - unlike personal [register], no separate
   /// sign-in step is needed before they can start inviting their team.
@@ -567,7 +567,7 @@ class ApiService {
   }
 
   /// Staff/admin only. [adminApproved] false = Queue (still awaiting a
-  /// MidMan admin's decision), true = Approvals (admin has cleared it for
+  /// MidMen admin's decision), true = Approvals (admin has cleared it for
   /// staff to work). [status] additionally filters by a RequestStatus value
   /// (e.g. 'approval_required' for the payment/spend sign-off flag).
   static Future<List<ServiceRequest>> allRequests({String? status, bool? adminApproved}) async {
@@ -595,7 +595,7 @@ class ApiService {
     return ServiceRequest.fromJson(_decode(res));
   }
 
-  /// The MidMan admin sign-off every request needs before staff can start
+  /// The MidMen admin sign-off every request needs before staff can start
   /// executing it.
   static Future<ServiceRequest> adminDecideRequest({
     required String requestId,
@@ -612,7 +612,7 @@ class ApiService {
   }
 
   /// The authorizer's sign-off on a beneficiary-initiated request, needed
-  /// before a MidMan admin will review it.
+  /// before a MidMen admin will review it.
   static Future<ServiceRequest> authorizerDecideRequest({
     required String requestId,
     required bool approve,

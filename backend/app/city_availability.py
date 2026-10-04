@@ -4,7 +4,7 @@ Only Zimbabwe has cities modeled for now - Harare, Bulawayo and Mutare.
 A request for any other country skips city selection entirely (city stays
 None) and sees the full active taxonomy unfiltered.
 
-Harare (the capital, MidMan's main hub) offers every active category.
+Harare (the capital, MidMen's main hub) offers every active category.
 Bulawayo and Mutare don't yet have the logistics/partner network for
 Airport Transfers (transportation), Hardware & Construction Material, or
 Property Cleaning - those stay Harare-only until that changes. Edit a city's list

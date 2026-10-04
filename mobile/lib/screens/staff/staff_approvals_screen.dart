@@ -5,7 +5,7 @@ import '../../models/models.dart';
 import '../../theme.dart';
 import 'staff_request_detail_screen.dart';
 
-/// Every request a MidMan admin has cleared for staff to work - moves here
+/// Every request a MidMen admin has cleared for staff to work - moves here
 /// from the Queue once admin-approved. Requests flagged for a payment/spend
 /// sign-off (status == approval_required) get the quick Approve/Reject
 /// actions inline for an admin viewer; a staff viewer sees the same list

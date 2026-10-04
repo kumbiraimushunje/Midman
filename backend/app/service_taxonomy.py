@@ -54,7 +54,7 @@ SERVICE_GROUPS = [
                 "label": "Administrative Errands",
                 "service_types": ["Application Follow-ups", "Certificate Collection"],
                 "notice": (
-                    "MidMan provides ordinary administrative assistance only (queuing, form "
+                    "MidMen provides ordinary administrative assistance only (queuing, form "
                     "submission, collection). Anything requiring a licensed professional (e.g. "
                     "a lawyer) or Power of Attorney isn't covered here and needs separate arrangement."
                 ),

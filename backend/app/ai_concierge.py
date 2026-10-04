@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 _VALID_CATEGORIES = ACTIVE_CATEGORIES
 
 _SYSTEM_PROMPT = (
-    "You are the intake assistant for MidMan, a concierge platform. A customer "
+    "You are the intake assistant for MidMen, a concierge platform. A customer "
     "describes something they need done in their own words. Turn it into a "
     "structured draft request.\n\n"
     f"- category must be exactly one of: {', '.join(_VALID_CATEGORIES)}\n"
@@ -112,7 +112,7 @@ def parse_request_text(text: str, beneficiaries: list[Beneficiary]) -> dict:
 
 
 _INVOICE_SYSTEM_PROMPT = (
-    "You are the intake assistant for MidMan, a concierge platform. A customer has "
+    "You are the intake assistant for MidMen, a concierge platform. A customer has "
     "uploaded an invoice or price quote (school fees, a medical bill, a supplier's "
     "quote, etc). Read it and turn it into a structured draft request - the same "
     "kind of draft you'd build from a typed description.\n\n"
@@ -233,7 +233,7 @@ def parse_invoice_document(
 
 
 _COMPARISON_SYSTEM_PROMPT = (
-    "You are the intake assistant for MidMan, a concierge platform. Staff have gathered "
+    "You are the intake assistant for MidMen, a concierge platform. Staff have gathered "
     "price quotes from multiple suppliers for the same job and want a quick comparison "
     "before presenting one option to the customer.\n\n"
     "This is a financial comparison a human will act on, so accuracy matters more than "
@@ -324,9 +324,9 @@ def compare_quotes(quotes: list[dict]) -> dict:
 
 
 _SUPPORT_SYSTEM_PROMPT = (
-    "You are MidMan's in-app help assistant. MidMan is a concierge platform: customers "
+    "You are MidMen's in-app help assistant. MidMen is a concierge platform: customers "
     "submit service requests (school fees, medical, groceries, documents, property, "
-    "procurement, gifts, transport, personal concierge, or other) and MidMan staff carry "
+    "procurement, gifts, transport, personal concierge, or other) and MidMen staff carry "
     "them out. You are a help/FAQ chatbot only - you cannot create, cancel, approve, or "
     "change anything yourself, and you never move money.\n\n"
     "How the platform works, for answering questions:\n"
@@ -334,7 +334,7 @@ _SUPPORT_SYSTEM_PROMPT = (
     "Progress, Completed. Staff sometimes need to confirm an approval before payment.\n"
     "- Every customer must verify their identity (KYC): upload an id/passport from the "
     "Account tab; staff review and approve or decline it, with a reason if declined.\n"
-    "- MidMan has no paid membership tiers - every account is free and gets the full set "
+    "- MidMen has no paid membership tiers - every account is free and gets the full set "
     "of benefits: saved beneficiaries, full request history, and priority service.\n"
     "- To start a new request, the customer types or speaks what they need on the Home "
     "tab, or uploads an invoice/quote there, or taps a service category directly.\n\n"
@@ -360,12 +360,12 @@ def _chat_fallback(reply: str) -> dict:
 
 
 def answer_support_question(message: str, history: list[dict], context: dict) -> dict:
-    """A read-only help/FAQ chatbot: answers questions about how MidMan works and the
+    """A read-only help/FAQ chatbot: answers questions about how MidMen works and the
     customer's own recent requests (given via `context`), but can never create, change,
     or cancel anything - same "AI never acts directly" rule as the rest of the concierge."""
     message = (message or "").strip()[:_MAX_MESSAGE_CHARS]
     if not message:
-        return _chat_fallback("Ask me anything about your requests or how MidMan works!")
+        return _chat_fallback("Ask me anything about your requests or how MidMen works!")
 
     if not settings.openai_api_key:
         return _chat_fallback("Chat support isn't available right now - check the Requests tab for status, or a staff member will follow up by email.")

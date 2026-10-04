@@ -166,7 +166,7 @@ class User(Base):
     account_type = Column(Enum(AccountType), default=AccountType.payg, nullable=False)
     trial_ends_at = Column(DateTime, nullable=True)
 
-    # Set only for employees of a MidMan Business account (see Company below).
+    # Set only for employees of a MidMen Business account (see Company below).
     # A personal/individual customer has both of these as NULL.
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     business_role = Column(Enum(BusinessRole), nullable=True)
@@ -185,7 +185,7 @@ class User(Base):
 
 
 class Company(Base):
-    """A MidMan Business account. A company isn't a login itself - it's the
+    """A MidMen Business account. A company isn't a login itself - it's the
     umbrella a fixed set of employee Users (see BusinessRole) are created
     under, each with their own login and permissions. The registrant of the
     business automatically becomes its first employee with the
@@ -254,7 +254,7 @@ class Beneficiary(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
-    # Set when this beneficiary was matched to a real MidMan customer account
+    # Set when this beneficiary was matched to a real MidMen customer account
     # at creation time (looked up by member ID, email, or phone). That linked
     # customer becomes able to raise requests "as a beneficiary" with the
     # owner (`owner_id`) as their authorizer - see ServiceRequest.authorizer_id.
@@ -288,7 +288,7 @@ class ServiceRequest(Base):
 
     # Set only for a Family Care & Child Support request the requester raised
     # "as a beneficiary" - the linked customer (see Beneficiary.linked_user_id)
-    # who must sign off before this goes to a MidMan admin. Null for a normal
+    # who must sign off before this goes to a MidMen admin. Null for a normal
     # direct request.
     authorizer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     authorizer_approved_at = Column(DateTime, nullable=True)
@@ -440,7 +440,7 @@ class InspectionReminder(Base):
     reminders, optional." Deliberately just an email nudge, not an
     auto-created request: it links back into the app so the customer still
     reviews and confirms every field themselves, same as everywhere else in
-    MidMan a request gets created.
+    MidMen a request gets created.
 
     One active reminder per user for now (a second POST just updates this
     row) - see app/reminders.py for the frequency -> interval mapping and

@@ -193,14 +193,14 @@ class BeneficiaryCreate(BaseModel):
     address: Optional[str] = None
     preferences: Optional[dict] = None
     # Member ID, email, or phone - if it matches an existing customer account,
-    # that account gets linked immediately as this beneficiary's MidMan login,
+    # that account gets linked immediately as this beneficiary's MidMen login,
     # letting them raise Family Care & Child Support requests as a beneficiary
     # with the owner as their authorizer.
     linked_member_identifier: Optional[str] = None
 
 
 class LinkedAccountOut(BaseModel):
-    """The MidMan account a beneficiary is linked to - shown so the owner can
+    """The MidMen account a beneficiary is linked to - shown so the owner can
     see at a glance which of their beneficiaries can act as an initiator."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -248,7 +248,7 @@ class ServiceRequestCreate(BaseModel):
     # Set only when raising a Family Care & Child Support request "as a
     # beneficiary" - must be a customer who has the requester linked as their
     # beneficiary (see Beneficiary.linked_user_id). That customer must approve
-    # before a MidMan admin does.
+    # before a MidMen admin does.
     authorizer_id: Optional[uuid.UUID] = None
 
     @field_validator("category")

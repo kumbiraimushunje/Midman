@@ -5,7 +5,7 @@ import '../../country_data.dart';
 import '../login_screen.dart';
 import '../role_home_shell.dart';
 
-/// Registers a MidMan Business account: the company itself (legal name,
+/// Registers a MidMen Business account: the company itself (legal name,
 /// registration number, addresses, industry, contacts, tax details - the
 /// same due-diligence detail an individual gives, scaled up to a company)
 /// plus the registrant as its first employee with the Administrator role.
@@ -299,7 +299,7 @@ class _BusinessRegisterScreenState extends State<BusinessRegisterScreen> {
               ],
               const SizedBox(height: 24),
               const Text(
-                "You'll get a Business ID once you submit. MidMan staff review the company's details before "
+                "You'll get a Business ID once you submit. MidMen staff review the company's details before "
                 "it's fully verified - you can add employees and use the app straight away in the meantime.",
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),

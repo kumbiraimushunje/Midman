@@ -506,7 +506,7 @@ class Beneficiary {
       );
 }
 
-/// The MidMan account a linked beneficiary can be reached at - shown on the
+/// The MidMen account a linked beneficiary can be reached at - shown on the
 /// Family screen so the owner can see the connection (email/phone/username).
 class LinkedAccount {
   final String id;
@@ -812,7 +812,7 @@ const kServiceGroups = [
       'Administrative Errands',
       'Application follow-ups, certificate collection',
       serviceTypes: ['Application Follow-ups', 'Certificate Collection'],
-      notice: "MidMan provides ordinary administrative assistance only (queuing, form submission, "
+      notice: "MidMen provides ordinary administrative assistance only (queuing, form submission, "
           "collection). Anything requiring a licensed professional (e.g. a lawyer) or Power of "
           "Attorney isn't covered here and needs separate arrangement.",
       titleHint: 'e.g. Follow up on my ID application',

@@ -9,8 +9,8 @@ import '../business/employees_screen.dart';
 import '../login_screen.dart';
 import '../support/support_chat_screen.dart';
 
-// TODO: placeholders - replace with MidMan's real support contact details before launch.
-const _supportEmail = 'support@midman.app';
+// TODO: placeholders - replace with MidMen's real support contact details before launch.
+const _supportEmail = 'support@midmen.app';
 const _supportPhone = '+263 71 234 5678';
 
 class AccountScreen extends StatefulWidget {

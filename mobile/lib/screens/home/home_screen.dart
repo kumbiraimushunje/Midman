@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: Icons.badge_outlined,
           text: user.kycStatus == 'rejected'
               ? 'Your identity verification was declined - upload a new document'
-              : 'Verify your identity to get the most out of MidMan',
+              : 'Verify your identity to get the most out of MidMen',
           color: MidManColors.warning,
         ));
       }
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const CircleAvatar(radius: 22, backgroundColor: MidManColors.gold, child: Icon(Icons.auto_awesome, color: Colors.black)),
                 const SizedBox(height: 14),
-                const Text('What can MidMan do for you today?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
+                const Text('What can MidMen do for you today?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
@@ -465,7 +465,7 @@ class _Promotion {
 // Static for now since there's no promotions backend yet; kept as its own
 // small carousel widget so it's a drop-in swap for one later.
 const _kPromotions = [
-  _Promotion(title: 'Refer a friend', subtitle: 'Give a friend MidMan, get a reward when they join', icon: Icons.people_alt_outlined),
+  _Promotion(title: 'Refer a friend', subtitle: 'Give a friend MidMen, get a reward when they join', icon: Icons.people_alt_outlined),
   _Promotion(title: 'Try the AI concierge', subtitle: 'Just describe what you need - we\'ll fill in the rest', icon: Icons.auto_awesome_outlined),
 ];
 

@@ -1,4 +1,4 @@
-# MidMan
+# MidMen
 
 Premium remote-execution and concierge platform. See
 [`PROJECT_PLAN.md`](PROJECT_PLAN.md) for the full concept, data model,

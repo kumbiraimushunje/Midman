@@ -1,7 +1,7 @@
-# MidMan — Project Plan
+# MidMen — Project Plan
 
 A premium remote-execution and concierge platform. Customers give instructions
-(not just money) and MidMan takes care of the execution — school fees,
+(not just money) and MidMen takes care of the execution — school fees,
 medical bills, property inspections, groceries, gifts, procurement, transport
 and more — with a transparent status timeline and proof of completion.
 
@@ -85,7 +85,7 @@ and seeded with demo accounts.
       form, request detail timeline, beneficiaries screen, account screen
 - [x] Help & Support contact card on Account (support email/phone, tappable
       to mailto:/tel:, plus the AI "Chat with us" support chat) - contact
-      details are placeholders (`support@midman.app`, a placeholder Zimbabwe
+      details are placeholders (`support@midmen.app`, a placeholder Zimbabwe
       number) marked `// TODO` in `account_screen.dart` to swap for the
       real ones before launch
 - [x] Evidence & document uploads: requester attaches an invoice/photo when
@@ -281,7 +281,7 @@ updates, evidence, and fraud-risk flags visible before approving.
 - [ ] Push notifications
 
 ### Phase 7 — Business (multi-user) accounts & city-aware requests
-- [x] MidMan Business accounts: a company isn't one login - registering via
+- [x] MidMen Business accounts: a company isn't one login - registering via
       "Register a Business account" on the login screen (`POST
       /auth/register-business`) creates a `Company` (legal name, trading
       name, registration number, country, registered/business address,
@@ -383,7 +383,7 @@ updates, evidence, and fraud-risk flags visible before approving.
       property inspection reminder date if one's active. Each source fails
       independently (caught separately) so one broken piece never blocks
       the others, and the whole section hides itself when there's nothing
-      to show. Below it, a "Promotions" carousel of MidMan's own static
+      to show. Below it, a "Promotions" carousel of MidMen's own static
       marketing banners (Refer a friend / Go Pro / Try the AI concierge) -
       TODO-flagged placeholder copy, same pattern as the support contact
       details, ready to swap for a real backend-driven campaigns feed

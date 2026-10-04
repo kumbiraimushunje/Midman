@@ -4,7 +4,7 @@ import '../../api_service.dart';
 import '../../models/models.dart';
 
 /// Requests raised by a beneficiary who has the current user listed as
-/// their authorizer - each needs the authorizer's sign-off before MidMan
+/// their authorizer - each needs the authorizer's sign-off before MidMen
 /// reviews it.
 class AuthorizerApprovalsScreen extends StatefulWidget {
   const AuthorizerApprovalsScreen({super.key});

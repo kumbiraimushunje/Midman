@@ -48,15 +48,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
               TextField(
                 controller: linkController,
                 decoration: const InputDecoration(
-                  labelText: "Link to their MidMan account (optional)",
+                  labelText: "Link to their MidMen account (optional)",
                   hintText: 'Their member ID, email, or phone',
                 ),
               ),
               const Padding(
                 padding: EdgeInsets.only(top: 6),
                 child: Text(
-                  "If they have a MidMan account, linking lets them start Family Care & Child Support "
-                  'requests as your beneficiary, which you approve before MidMan does.',
+                  "If they have a MidMen account, linking lets them start Family Care & Child Support "
+                  'requests as your beneficiary, which you approve before MidMen does.',
                   style: TextStyle(fontSize: 11.5, color: Colors.grey),
                 ),
               ),
@@ -83,8 +83,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
         if (linkController.text.trim().isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(saved.isLinkedToAccount
-                ? 'Linked to their MidMan account.'
-                : "Couldn't find a MidMan account matching that - beneficiary saved without a link."),
+                ? 'Linked to their MidMen account.'
+                : "Couldn't find a MidMen account matching that - beneficiary saved without a link."),
           ));
         }
       } on ApiException catch (e) {

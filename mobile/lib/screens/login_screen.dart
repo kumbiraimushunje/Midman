@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 48),
               Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 6),
-              const Text('Sign in to your MidMan account', style: TextStyle(color: Colors.grey)),
+              const Text('Sign in to your MidMen account', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 32),
               TextField(
                 controller: _identifierController,

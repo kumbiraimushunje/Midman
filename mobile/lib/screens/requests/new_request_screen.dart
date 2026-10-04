@@ -411,7 +411,7 @@ class _NewRequestScreenState extends State<NewRequestScreen> {
 
 /// Lets a customer who has an authorizer (someone who's listed them as a
 /// beneficiary) choose between a direct request and raising it "as a
-/// beneficiary" - which needs that authorizer's sign-off before MidMan
+/// beneficiary" - which needs that authorizer's sign-off before MidMen
 /// reviews it. Only shown for Family Care & Child Support categories. Each
 /// button submits immediately - there's no separate confirm step.
 class _AuthorizerCard extends StatelessWidget {

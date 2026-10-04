@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
-    smtp_from_email: str = "notifications@midman.app"
+    smtp_from_email: str = "notifications@midmen.app"
 
     # Leave s3_bucket_name blank and evidence uploads fall back to local
     # disk storage (backend/uploads/) - no AWS needed for local dev.

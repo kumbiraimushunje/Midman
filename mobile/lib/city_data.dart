@@ -4,7 +4,7 @@ import 'models/models.dart' show kServiceCategories;
 /// backend/app/city_availability.py by hand, keep both in sync.
 ///
 /// Only Zimbabwe has cities modeled for now - Harare, Bulawayo and Mutare.
-/// Harare (the capital, MidMan's main hub) offers every active category;
+/// Harare (the capital, MidMen's main hub) offers every active category;
 /// Bulawayo and Mutare don't yet have the logistics/partner network for
 /// Airport Transfers (transportation), Hardware & Construction Material, or
 /// Property Cleaning, so those stay Harare-only until that changes.

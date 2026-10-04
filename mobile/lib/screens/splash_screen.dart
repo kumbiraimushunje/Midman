@@ -26,7 +26,7 @@ class SplashScreen extends StatelessWidget {
                 Icon(Icons.handshake_outlined, color: const Color(0xFFC9A24B), size: 40),
                 const SizedBox(height: 16),
                 Text(
-                  'MidMan',
+                  'MidMen',
                   style: GoogleFonts.playfairDisplay(
                     color: Colors.white,
                     fontSize: 40,

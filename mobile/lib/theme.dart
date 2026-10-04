@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens lifted from the MidMan mockups: near-black/navy backgrounds,
+/// Design tokens lifted from the MidMen mockups: near-black/navy backgrounds,
 /// warm off-white cards, a single gold accent, generous rounding.
 class MidManColors {
   static const ink = Color(0xFF12141C); // near-black background

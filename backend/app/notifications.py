@@ -27,7 +27,7 @@ def notify_status_change(user: User, request: ServiceRequest, stage: str) -> Non
     body = (
         f"Hi {user.full_name},\n\n"
         f"Your request \"{request.title}\" ({request.request_number}) is now: {stage.replace('_', ' ').title()}.\n\n"
-        f"Track it any time in the MidMan app.\n\nMidMan"
+        f"Track it any time in the MidMen app.\n\nMidMan"
     )
     _send(user.email, subject, body)
 
@@ -47,13 +47,13 @@ def notify_decision(user: User, request: ServiceRequest, approved: bool, comment
 def notify_authorizer_approval_needed(authorizer: User, initiator: User, request: ServiceRequest) -> None:
     """Sent to the authorizer (e.g. the parent/relative paying) when their
     beneficiary raises a Family Care & Child Support request that needs the
-    authorizer's sign-off before MidMan reviews it."""
+    authorizer's sign-off before MidMen reviews it."""
     subject = f"{initiator.full_name} needs your approval - {request.request_number}"
     body = (
         f"Hi {authorizer.full_name},\n\n"
-        f"{initiator.full_name}, who has you listed as their authorizer on MidMan, has raised a request "
-        f"\"{request.title}\" ({request.request_number}) that needs your approval before MidMan can review it.\n\n"
-        f"Open the MidMan app to approve or decline it.\n\nMidMan"
+        f"{initiator.full_name}, who has you listed as their authorizer on MidMen, has raised a request "
+        f"\"{request.title}\" ({request.request_number}) that needs your approval before MidMen can review it.\n\n"
+        f"Open the MidMen app to approve or decline it.\n\nMidMan"
     )
     _send(authorizer.email, subject, body)
 
@@ -67,7 +67,7 @@ def notify_authorizer_decision(initiator: User, authorizer: User, request: Servi
         f"\"{request.title}\" ({request.request_number})."
         + (f"\n\nComment: {comment}" if comment else "")
         + (
-            "\n\nIt now moves on to MidMan for final review."
+            "\n\nIt now moves on to MidMen for final review."
             if approved
             else ""
         )
@@ -77,9 +77,9 @@ def notify_authorizer_decision(initiator: User, authorizer: User, request: Servi
 
 
 def notify_admin_approval(user: User, request: ServiceRequest, approved: bool, comment: str | None) -> None:
-    """Every request needs a MidMan admin's approval before staff can start
+    """Every request needs a MidMen admin's approval before staff can start
     executing it - this confirms that decision to the customer."""
-    subject = f"Your request was {'approved' if approved else 'declined'} by MidMan - {request.request_number}"
+    subject = f"Your request was {'approved' if approved else 'declined'} by MidMen - {request.request_number}"
     body = (
         f"Hi {user.full_name},\n\n"
         f"Your request \"{request.title}\" ({request.request_number}) has been "
@@ -91,7 +91,7 @@ def notify_admin_approval(user: User, request: ServiceRequest, approved: bool, c
 
 
 def notify_admin_request_pending(admin: User, requester: User, request: ServiceRequest) -> None:
-    """Sent to every MidMan admin as soon as a request is actually ready for
+    """Sent to every MidMen admin as soon as a request is actually ready for
     admin review - immediately for a direct request, or once the beneficiary's
     authorizer has signed off for one raised "as a beneficiary"."""
     subject = f"Request needs your approval - {request.request_number}"
@@ -99,18 +99,18 @@ def notify_admin_request_pending(admin: User, requester: User, request: ServiceR
         f"Hi {admin.full_name},\n\n"
         f"{requester.full_name} raised a request \"{request.title}\" ({request.request_number}) that's "
         f"ready for your approval before staff can start on it.\n\n"
-        f"Open the MidMan app to review it.\n\nMidMan"
+        f"Open the MidMen app to review it.\n\nMidMan"
     )
     _send(admin.email, subject, body)
 
 
 def notify_password_reset_otp(user: User, otp: str) -> None:
-    subject = "Your MidMan password reset code"
+    subject = "Your MidMen password reset code"
     body = (
         f"Hi {user.full_name},\n\n"
         f"Your password reset code is: {otp}\n\n"
         f"It expires in 10 minutes. If you didn't ask to reset your password, you can ignore this email.\n\n"
-        f"MidMan"
+        f"MidMen"
     )
     _send(user.email, subject, body)
 
@@ -134,9 +134,9 @@ def notify_kyc_decision(user: User, approved: bool, reason: str | None) -> None:
             if approved
             else "We weren't able to verify your identity document."
             + (f"\n\nReason: {reason}" if reason else "")
-            + "\n\nPlease upload a clearer copy in the MidMan app and we'll take another look.\n\n"
+            + "\n\nPlease upload a clearer copy in the MidMen app and we'll take another look.\n\n"
         )
-        + "MidMan"
+        + "MidMen"
     )
     _send(user.email, subject, body)
 
@@ -151,9 +151,9 @@ def notify_company_kyc_decision(company: Company, approved: bool, reason: str | 
             if approved
             else f"We weren't able to verify {company.legal_name}'s registration documents."
             + (f"\n\nReason: {reason}" if reason else "")
-            + "\n\nPlease upload clearer copies in the MidMan app and we'll take another look.\n\n"
+            + "\n\nPlease upload clearer copies in the MidMen app and we'll take another look.\n\n"
         )
-        + "MidMan"
+        + "MidMen"
     )
     _send(company.email, subject, body)
 
@@ -164,9 +164,9 @@ def notify_inspection_reminder(user: User, property_label: str | None) -> None:
     body = (
         f"Hi {user.full_name},\n\n"
         f"This is your reminder to book a property inspection{where}. "
-        "Open the MidMan app and request one under Property Management & Home "
+        "Open the MidMen app and request one under Property Management & Home "
         "Centre whenever you're ready - we'll take it from there.\n\n"
-        "MidMan"
+        "MidMen"
     )
     _send(user.email, subject, body)
 

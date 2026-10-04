@@ -16,7 +16,7 @@ class MidManApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MidMan',
+      title: 'MidMen',
       debugShowCheckedModeBanner: false,
       theme: buildMidManTheme(),
       navigatorKey: navigatorKey,

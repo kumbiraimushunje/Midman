@@ -64,7 +64,7 @@ from .security import create_access_token, get_current_user, get_current_user_op
 from .service_taxonomy import FAMILY_CARE_CATEGORIES
 from .uploads import UPLOAD_DIR, content_type_for, read_upload_bytes, save_upload
 
-app = FastAPI(title="MidMan API")
+app = FastAPI(title="MidMen API")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.add_middleware(
@@ -109,7 +109,7 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
 
 @app.post("/auth/register-business", response_model=schemas.Token, status_code=201)
 def register_business(payload: schemas.BusinessRegisterRequest, db: Session = Depends(get_db)):
-    """Registers a MidMan Business account: creates the Company (kyc_status
+    """Registers a MidMen Business account: creates the Company (kyc_status
     starts pending, same as an individual's id-document review) and the
     registrant as its first employee with the administrator role - they can
     then add Sarah, John, Mary, Peter etc. from the Employees screen."""
@@ -190,7 +190,7 @@ _OTP_MAX_ATTEMPTS = 5
 @app.post("/auth/forgot-password", status_code=204)
 def forgot_password(payload: schemas.ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Always responds the same way whether or not the email is registered,
-    so this can't be used to check which emails have a MidMan account."""
+    so this can't be used to check which emails have a MidMen account."""
     user = db.query(User).filter(User.email == payload.email, User.deleted_at.is_(None)).first()
     if user is not None:
         db.query(PasswordResetOTP).filter(
@@ -479,7 +479,7 @@ def create_service_request(
     )
     db.add(req)
     db.flush()
-    event_note = f"Awaiting approval from {authorizer.full_name} before MidMan review" if authorizer is not None else None
+    event_note = f"Awaiting approval from {authorizer.full_name} before MidMen review" if authorizer is not None else None
     db.add(RequestEvent(request_id=req.id, status=RequestStatus.requested, note=event_note, created_by_id=current_user.id))
     db.commit()
     db.refresh(req)
@@ -506,7 +506,7 @@ def list_all_requests(
     db: Session = Depends(get_db),
 ):
     """The staff/admin work list. Queue (admin_approved=false) is the intake
-    list of requests still awaiting a MidMan admin's decision; Approvals
+    list of requests still awaiting a MidMen admin's decision; Approvals
     (admin_approved=true) is everything admin has cleared - since a request
     can only ever reach approval_required (a payment/spend sign-off flag)
     after admin has approved it (see update_status's gate), that older
@@ -599,7 +599,7 @@ def _is_payer(req: ServiceRequest, current_user: User) -> bool:
 
 
 def _notify_admins_request_pending(db: Session, background_tasks: BackgroundTasks, req: ServiceRequest) -> None:
-    """Emails every MidMan admin that a request is ready for their approval -
+    """Emails every MidMen admin that a request is ready for their approval -
     called once a request actually reaches that point (immediately for a
     direct request, or once its authorizer has signed off)."""
     admins = db.query(User).filter(User.role == UserRole.admin, User.deleted_at.is_(None)).all()
@@ -795,7 +795,7 @@ def authorizer_approve_request(
     db: Session = Depends(get_db),
 ):
     """The authorizer (see ServiceRequest.authorizer_id) signs off on a
-    beneficiary-initiated request. Still needs a MidMan admin's approval
+    beneficiary-initiated request. Still needs a MidMen admin's approval
     afterwards before staff can act on it."""
     req = _get_request_or_404(request_id, db)
     if req.authorizer_id != current_user.id:
@@ -864,7 +864,7 @@ def admin_approve_request(
         raise HTTPException(400, "Waiting on the beneficiary's authorizer to approve first")
     req.admin_approved_at = datetime.utcnow()
     req.admin_approved_by_id = current_user.id
-    note = f"Approved by MidMan admin {current_user.full_name} - staff can now start arranging this"
+    note = f"Approved by MidMen admin {current_user.full_name} - staff can now start arranging this"
     if payload.comment:
         note += f": {payload.comment}"
     db.add(RequestEvent(request_id=req.id, status=req.status, note=note, created_by_id=current_user.id))
@@ -894,7 +894,7 @@ def admin_reject_request(
     req.decided_at = datetime.utcnow()
     db.add(RequestEvent(
         request_id=req.id, status=req.status,
-        note=f"Rejected by MidMan admin {current_user.full_name}" + (f": {payload.comment}" if payload.comment else ""),
+        note=f"Rejected by MidMen admin {current_user.full_name}" + (f": {payload.comment}" if payload.comment else ""),
         created_by_id=current_user.id,
     ))
     record_audit(
@@ -916,7 +916,7 @@ def update_status(
     db: Session = Depends(get_db),
 ):
     """Staff move a request through Arranging -> In Progress -> Completed -> Verified -> Closed -
-    only once a MidMan admin has approved it (admin_approve above)."""
+    only once a MidMen admin has approved it (admin_approve above)."""
     if current_user.role not in (UserRole.staff, UserRole.admin):
         raise HTTPException(403, "Staff only")
     req = _get_request_or_404(request_id, db)
@@ -1494,7 +1494,7 @@ def create_staff_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Admin-only path for provisioning MidMan staff/admin accounts - unlike
+    """Admin-only path for provisioning MidMen staff/admin accounts - unlike
     /auth/register (always role=customer, self-service), this is how internal
     accounts come to exist at all: staff never self-register."""
     _require_admin(current_user)

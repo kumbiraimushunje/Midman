@@ -1,4 +1,4 @@
-# MidMan backend
+# MidMen backend
 
 FastAPI + PostgreSQL (Neon).
 

@@ -9,7 +9,7 @@ class _ChatEntry {
   const _ChatEntry({required this.role, required this.content});
 }
 
-const _greeting = "Hi! Ask me anything about your requests, membership plans, or how MidMan works.";
+const _greeting = "Hi! Ask me anything about your requests, membership plans, or how MidMen works.";
 
 class SupportChatScreen extends StatefulWidget {
   const SupportChatScreen({super.key});
