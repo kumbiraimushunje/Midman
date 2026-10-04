@@ -263,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Text(
                   _firstName == null ? 'Good to see you' : 'Good to see you, $_firstName',
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                  style: const TextStyle(fontSize: 16, color: MidManColors.textDark, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -281,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const CircleAvatar(radius: 22, backgroundColor: MidManColors.gold, child: Icon(Icons.auto_awesome, color: Colors.black)),
                 const SizedBox(height: 14),
-                const Text('How can I help you 😊', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
+                const Text('What can MidMan do for you today?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3)),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _promptController,
